@@ -42,6 +42,7 @@ public:
   Value create(Heap &, std::string type, std::shared_ptr<void> resource);
   std::shared_ptr<void> get(const Value &, std::string_view type) const;
   void destroy(const Value &);
+  std::size_t trackedLeaseSlots() const;
   void close();
 private:
   struct State;

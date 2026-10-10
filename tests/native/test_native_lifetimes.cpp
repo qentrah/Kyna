@@ -10,6 +10,11 @@ int main() {
     Heap heap;
     Value value(heap.allocateArray());
     expired = heap.retain(value);
+    for (int i = 0; i < 10000; ++i) {
+      auto transient = heap.retain(Value(std::int64_t{i}));
+    }
+    assert(heap.collections() == 0);
+    assert(heap.stats().retainedRootSlots < 128);
     heap.collect({}); assert(heap.arrayCount() == 1);
     bool refused = false;
     std::thread other([&] { try { expired.value(); } catch (...) { refused = true; } });
@@ -20,6 +25,21 @@ int main() {
   try { expired.value(); } catch (...) { refused = true; }
   assert(refused);
   Heap heap;
+  {
+    Heap resourceHeap;
+    NativeResources stress;
+    int releases = 0;
+    for (int i = 0; i < 10000; ++i) {
+      auto lease = stress.create(resourceHeap, "Stress", std::shared_ptr<void>(new int(i),
+          [&](void *p) { delete static_cast<int *>(p); ++releases; }));
+      if (i % 32 == 31) resourceHeap.collect({});
+    }
+    resourceHeap.collect({});
+    assert(releases == 10000);
+    assert(stress.trackedLeaseSlots() < 256);
+    stress.close();
+    assert(stress.trackedLeaseSlots() == 0);
+  }
   {
     NativeLifetime contracts;
     NativeCallbacks runtime;

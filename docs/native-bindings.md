@@ -93,3 +93,10 @@ and application staging are described in [Libraries](libraries.md).
 
 Load a fresh native module for each `LanguageSession`; its returned function set
 shares session-owned module state and must not be reused across sessions.
+
+
+Expired retained-root and resource-lease metadata is pruned periodically even
+when scalar-only callbacks do not trigger object GC. C++ hosts can monitor
+`Heap::stats().retainedRootSlots` and `NativeResources::trackedLeaseSlots()`;
+these counts include expired entries awaiting the next bounded pruning pass.
+The ABI 2 resource identity cache removes an entry when its final lease ends.

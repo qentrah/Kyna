@@ -5,10 +5,24 @@ const Module = require('node:module');
 const path = require('node:path');
 const documents = new Map();
 function document(file, text) {
-  const doc = { fileName: path.resolve('/project', file), getText: () => text };
+  const doc = { fileName: path.resolve('/project', file), getText: range => range ? text.split('\n')[range.start.line].slice(range.start.character, range.end.character) : text,
+    lineAt: line => ({ text: doc.getText().split('\n')[line] }),
+    get lineCount() { return doc.getText().split('\n').length; },
+    getWordRangeAtPosition: position => {
+      const line = doc.lineAt(position.line).text;
+      for (const match of line.matchAll(/[A-Za-z_]\w*/g))
+        if (position.character >= match.index && position.character <= match.index + match[0].length)
+          return { start: { line: position.line, character: match.index }, end: { line: position.line, character: match.index + match[0].length } };
+    }
+  };
+  doc.uri = { fsPath: doc.fileName };
   documents.set(doc.fileName, doc); return doc;
 }
-const vscode = { Uri: { file: fsPath => ({ fsPath }) }, workspace: {
+class Position { constructor(line, character) { Object.assign(this, { line, character }); } }
+class Location { constructor(uri, position) { Object.assign(this, { uri, position }); } }
+class MarkdownString { constructor(value = '') { this.value = value; } appendMarkdown(value) { this.value += value; } }
+class Hover { constructor(contents, range) { Object.assign(this, { contents, range }); } }
+const vscode = { Position, Location, MarkdownString, Hover, CompletionItemKind: {}, Uri: { file: fsPath => ({ fsPath }) }, workspace: {
   openTextDocument: async uri => {
     if (!documents.has(uri.fsPath)) throw new Error('missing module');
     return documents.get(uri.fsPath);
@@ -16,7 +30,8 @@ const vscode = { Uri: { file: fsPath => ({ fsPath }) }, workspace: {
 } };
 const load = Module._load;
 Module._load = function(name, ...args) { return name === 'vscode' ? vscode : load.call(this, name, ...args); };
-const { resolveImportedDeclaration } = require('../src/import-navigation');
+const { resolveImportedDeclaration, exportedSymbols } = require('../src/import-navigation');
+const { hoverProvider, definitionProvider } = require('../src/language-features');
 Module._load = load;
 test('named type aliases navigate to the unsaved exported declaration', async () => {
   const target = document('t.ky', 'export intf Shape { width: int; }\ntype Hidden = int;');
@@ -42,4 +57,28 @@ test('star re-exports terminate cycles and missing modules safely', async () => 
   assert.equal(await resolveImportedDeclaration(main, 'Missing'), undefined);
   const missing = document('missing.ky', 'import type { Missing } from "./absent.ky";');
   assert.equal(await resolveImportedDeclaration(missing, 'Missing'), undefined);
+});
+
+test('hover and definition retain imported alias and namespace contracts', async () => {
+  const target = document('hover-types.ky', 'export type Shape = int;');
+  const main = document('hover.ky', 'import type { Shape as Local } from "./hover-types.ky";\nvar value: Local;');
+  const position = { line: 1, character: 12 };
+  const hover = await hoverProvider.provideHover(main, position);
+  assert.match(hover.contents.value, /type Shape = int/);
+  const definition = await definitionProvider.provideDefinition(main, position);
+  assert.equal(definition.uri.fsPath, target.fileName);
+  assert.equal(definition.position.line, 0);
+  const namespaced = document('hover-namespace.ky', 'import type * as Types from "./hover-types.ky";\ntype Shape = bool;\nvar value: Types.Shape;');
+  const memberPosition = { line: 2, character: 19 };
+  const member = await hoverProvider.provideHover(namespaced, memberPosition);
+  assert.match(member.contents.value, /type Shape = int/);
+  assert.equal((await definitionProvider.provideDefinition(namespaced, memberPosition)).uri.fsPath, target.fileName);
+});
+
+test('namespace exports include unsaved aliases and re-exports, excluding private types', async () => {
+  document('completion-types.ky', 'export type Public = int;\ntype Private = bool;');
+  const barrel = document('completion-barrel.ky', 'export type { Public as Alias } from "./completion-types.ky";\nexport type * from "./completion-types.ky";');
+  assert.deepEqual((await exportedSymbols(barrel)).map(item => item.name).sort(), ['Alias', 'Public']);
+  barrel.getText = () => 'export type Edited = string;';
+  assert.deepEqual((await exportedSymbols(barrel)).map(item => item.name), ['Edited']);
 });

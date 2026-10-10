@@ -136,3 +136,11 @@ pending. All 58 CTests passed in the local optional-adapter configuration.
 Generated Android Qt/NDK and sanitizer build directories have verified local tar
 backups under `build-release/verification`; restore them before rebuilding those
 configurations. Source, Release CLI, native adapters, APKs, and test logs remain.
+
+
+Retained roots and resource leases now prune expired bookkeeping independently
+of object GC. Stress tests create/release 10,000 leases, preserve a live retained
+root, and verify bounded metadata and exactly-once destruction. The ABI resource
+identity cache drops the final lease's entry. Extension namespace completion,
+hover, and definitions read unsaved imported modules, retain alias targets, and
+follow relative re-exports; six extension tests pass, and the VSIX was rebuilt.

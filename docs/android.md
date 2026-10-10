@@ -14,7 +14,7 @@ Use Qt's `qt-cmake`, not a host-only CMake configuration:
 /path/to/Qt/android_arm64_v8a/bin/qt-cmake -S . -B build-android \
   -DCMAKE_BUILD_TYPE=Release -DKYNA_BUILD_TESTS=OFF -DKYNA_BUILD_CLI=OFF \
   -DKYNA_WITH_GUI=ON -DKYNA_ANDROID_SHELL=ON \
-  -DANDROID_PLATFORM=android28 \
+  -DANDROID_PLATFORM=android-28 \
   -DQT_HOST_PATH=/path/to/matching/host/Qt \
   -DANDROID_SDK_ROOT=/path/to/sdk -DANDROID_NDK_ROOT=/path/to/ndk \
   -DKYNA_ANDROID_APP_SOURCE=/path/to/kyna-app \

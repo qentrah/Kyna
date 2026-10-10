@@ -68,4 +68,19 @@ async function resolveImportedDeclaration(document, name, receiver, seen = new S
   }
   return undefined;
 }
-module.exports = { resolveImportedDeclaration };
+async function exportedSymbols(document, seen = new Set()) {
+  if (seen.has(document.fileName) || seen.size >= 64) return [];
+  seen.add(document.fileName);
+  const entries = new Map();
+  for (const match of source(document).matchAll(/\bexport\s+(?:public\s+)?(class|intf|type|fn|func|var|const|let|set)\s+([A-Za-z_]\w*)/g))
+    entries.set(match[2], { name: match[2], kind: match[1] });
+  for (const match of source(document).matchAll(/\bexport\s+(type\s+)?\{([^}]+)\}\s*(?:from\s*"([^"]+)")?\s*;/g))
+    for (const binding of bindings(match[2])) entries.set(binding.local, { name: binding.local, kind: match[1] ? 'type' : 'export' });
+  for (const match of source(document).matchAll(/\bexport\s+(?:type\s+)?\*\s+from\s*"([^"]+)"\s*;/g)) {
+    const target = await openModule(document, match[1]);
+    if (target) for (const entry of await exportedSymbols(target, seen))
+      if (!entries.has(entry.name)) entries.set(entry.name, entry);
+  }
+  return [...entries.values()];
+}
+module.exports = { resolveImportedDeclaration, openModule, exportedSymbols };

@@ -5,6 +5,7 @@ namespace kyna::native {
 CallV2::CallV2(ModuleV2 &owner, Heap &heap) : owner(owner), heap(heap) { owner.active.push_back(this); }
 CallV2::~CallV2() { for (auto handle : borrowed) owner.release(handle); owner.active.pop_back(); }
 ResourceV2::~ResourceV2() {
+  owner->handles.erase(handle);
   if (!owner->closed && owner->context) {
     try { owner->module->resource_destroy(owner->context, handle); } catch (...) {}
   }

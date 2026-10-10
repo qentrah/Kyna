@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { wordCompletions, namespaceMembers } = require('./language-catalog');
 const { findProjectRoot } = require('./project-context');
-const { resolveImportedDeclaration } = require('./import-navigation');
+const { resolveImportedDeclaration, openModule, exportedSymbols } = require('./import-navigation');
 function declaredSymbols(text) {
   const symbols = [];
   const expression = /\b(class|intf|type|fn|func|var|const|let|set)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
@@ -36,7 +36,7 @@ function completionItem(definition) {
 async function importPathCompletions(document, position) {
   const before = document.lineAt(position.line).text.slice(0, position.character);
   if (!/\b(?:import\s+(?:type\s+)?|from\s+)"[^"]*$/.test(before)) return null;
-  const files = await vscode.workspace.findFiles('**/*.{ky,kyna}', '**/{node_modules,build,build-*}/**', 300);
+  const files = await vscode.workspace.findFiles('**/*.{ky,kyna,ky.d,kyna.d}', '**/{node_modules,build,build-*}/**', 300);
   return files.map(uri => {
     let relative = path.relative(path.dirname(document.fileName), uri.fsPath).replace(/\\/g, '/');
     if (!relative.startsWith('.')) relative = `./${relative}`;
@@ -78,17 +78,18 @@ async function importedMemberCompletions(document, position) {
     return ['ok', 'response', 'error'].map(name =>
       completionItem([name, vscode.CompletionItemKind.Property, 'Kyna non-throwing HTTP result member'])
     );
-  const declaration = source.match(new RegExp(`\\bimport\\s+"([^"]+)"\\s+as\\s+${escapedReceiver}\\s*;`))
+  const declaration = source.match(new RegExp(`\\bimport\\s+(?:type\\s+)?"([^"]+)"\\s+as\\s+${escapedReceiver}\\s*;`))
     || source.match(new RegExp(`\\bimport\\s+(?:type\\s+)?\\*\\s+as\\s+${escapedReceiver}\\s+from\\s+"([^"]+)"\\s*;`));
   if (!declaration) return null;
   try {
-    const uri = vscode.Uri.file(path.resolve(path.dirname(document.fileName), declaration[1]));
-    const text = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
-    const exports = [];
-    const expression = /\bexport\s+(?:public\s+)?(class|intf|type|fn|func|var|const|let|set)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
-    for (const match of text.matchAll(expression))
-      exports.push(completionItem([match[2], match[1] === 'fn' || match[1] === 'func' ? vscode.CompletionItemKind.Function : vscode.CompletionItemKind.Field, `Exported ${match[1]} from ${declaration[1]}`]));
-    return exports;
+    const target = await openModule(document, declaration[1]);
+    if (!target) return [];
+    return (await exportedSymbols(target)).map(({name, kind}) => completionItem([
+      name,
+      kind === 'fn' || kind === 'func' ? vscode.CompletionItemKind.Function
+        : kind === 'intf' || kind === 'type' ? vscode.CompletionItemKind.Interface : vscode.CompletionItemKind.Field,
+      `Exported ${kind} from ${declaration[1]}`
+    ]));
   } catch (_) {
     return [];
   }
@@ -162,7 +163,12 @@ function collectDeclarations(text) {
       if (kind === 'class' || kind === 'intf') {
         label = kind === 'class' ? 'class' : 'interface';
         const parent = rest.match(/extends\s+([A-Za-z_][A-Za-z0-9_]*)/);
-        signature = `${kind} ${name}${parent ? ` extends ${parent[1]}` : ''}`;
+        const generic = rest.match(/^\s*<[^>]+>/)?.[0].trim() || '';
+        signature = `${kind} ${name}${generic}${parent ? ` extends ${parent[1]}` : ''}`;
+      } else if (kind === 'type') {
+        label = 'type alias';
+        const target = rest.trim().replace(/;.*$/, '');
+        signature = `type ${name}${target.startsWith('<') ? '' : ' '}${target}`;
       } else if (kind === 'fn' || kind === 'func') {
         label = 'function';
         const params = rest.match(/^\s*\(([^)]*)\)/);

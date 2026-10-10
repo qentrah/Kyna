@@ -28,6 +28,7 @@ struct HeapStats {
   std::size_t closures{0};
   std::size_t boundMethods{0};
   std::size_t errors{0};
+  std::size_t retainedRootSlots{0}; // Includes expired entries awaiting bounded pruning.
 };
 
 struct HeapRoots {

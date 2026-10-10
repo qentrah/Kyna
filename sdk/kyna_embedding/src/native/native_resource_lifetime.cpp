@@ -1,10 +1,12 @@
 // Owns opaque resource leases and deterministic close/destroy behavior.
 #include <kyna/language/native_lifetimes.hpp>
+#include <algorithm>
 namespace kyna {
 struct NativeResources::State {
   std::thread::id thread{std::this_thread::get_id()};
   bool closed{false};
   std::vector<std::weak_ptr<Lease>> leases;
+  std::size_t createsSincePrune{0};
 };
 struct NativeResources::Lease final : OpaqueNativeResource {
   std::weak_ptr<State> owner;
@@ -20,6 +22,13 @@ NativeResources::~NativeResources() { close(); }
 Value NativeResources::create(Heap &heap, std::string type, std::shared_ptr<void> resource) {
   if (state->closed || state->thread != std::this_thread::get_id()) stale("resource session is closed or on the wrong thread");
   if (type.empty() || !resource) stale("invalid native resource");
+  if (++state->createsSincePrune >= 64) {
+    std::erase_if(state->leases, [](const auto &weak) {
+      const auto lease = weak.lock();
+      return !lease || !lease->resource;
+    });
+    state->createsSincePrune = 0;
+  }
   auto lease = std::make_shared<Lease>();
   lease->owner = state; lease->type = std::move(type); lease->resource = std::move(resource);
   state->leases.push_back(lease);
@@ -40,6 +49,10 @@ void NativeResources::destroy(const Value &value) {
   if (!object || !*object || !(*object)->nativeResource) stale("value is not a native resource");
   get(value, (*object)->nativeResource->typeName());
   std::dynamic_pointer_cast<Lease>((*object)->nativeResource)->resource.reset();
+}
+std::size_t NativeResources::trackedLeaseSlots() const {
+  if (state->thread != std::this_thread::get_id()) stale("resource bookkeeping belongs to another thread");
+  return state->leases.size();
 }
 void NativeResources::close() {
   if (state->closed) return;
