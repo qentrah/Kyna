@@ -27,11 +27,11 @@ std::string nativeTarget(){
 #endif
 }
 void installNativePackages(const fs::path &root,const toml::table &manifest,bool locked){
- const auto *deps=manifest["dependencies"].as_table();if(!deps)return;
+ const auto *deps=manifest["dependencies"].as_table();
  toml::array records;
  struct Artifact {fs::path file; std::string data, version; std::map<fs::path,std::string> extra; fs::path directory;};
  std::vector<Artifact> artifacts;
- for(const auto &[name,node]:*deps){const auto *entry=node.as_table();if(!entry)continue;const auto *native=(*entry)["native"].as_table();if(!native)continue;
+ if(deps) for(const auto &[name,node]:*deps){const auto *entry=node.as_table();if(!entry)continue;const auto *native=(*entry)["native"].as_table();if(!native)continue;
   auto package=std::string(name.str());if(package.empty()||package.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")!=std::string::npos)fail("KPACKAGE1001","invalid native package name");
   auto version=(*native)["version"].value_or(std::string{}),target=(*native)["target"].value_or(std::string{}),sha=(*native)["sha256"].value_or(std::string{});auto abi=(*native)["abi"].value_or(int64_t{});
   if(version.empty()||target!=nativeTarget()||abi!=2||sha.size()!=64||sha.find_first_not_of("0123456789abcdef")!=std::string::npos)fail("KPACKAGE1002","native contract mismatch for "+package);
@@ -49,7 +49,12 @@ void installNativePackages(const fs::path &root,const toml::table &manifest,bool
   if(!extra.empty()){record.insert("module_root",directory.generic_string());toml::table files;for(auto &[path,bytes]:extra)files.insert((directory/path).generic_string(),detail::sha256Hex(bytes));record.insert("files",std::move(files));}
   records.push_back(std::move(record));artifacts.push_back({root/file,std::move(data),version,std::move(extra),directory.empty()?fs::path{}:root/directory});
  }
- if(records.empty())return;
+ if(records.empty()) {
+  const auto lock=root/".kyna/native.lock";
+  if(locked&&fs::exists(lock))fail("KPACKAGE1004","native lock lists removed dependencies");
+  if(!locked)fs::remove(lock);
+  return;
+ }
  toml::table contract{{"schema","kyna.native-lock/v1"},{"package",std::move(records)}};std::ostringstream rendered;rendered<<contract<<'\n';auto lock=root/".kyna/native.lock";
  if(locked&&(!fs::exists(lock)||bytes(lock)!=rendered.str()))fail("KPACKAGE1004","native lock disagrees with manifest");
  // Compare the contract before writing artifacts, particularly for --locked.

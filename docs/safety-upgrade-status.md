@@ -51,7 +51,8 @@ remaining approved plan. It is not a release-completion claim.
    are tested through VM and tree-walk.
 4. Native contract/checksum installation and `ky build` are implemented and smoke
    tested locally. Verified tar acquisition and per-file rechecking are implemented. Dependency relocation/deployment and
-   transactional Git/native lock updates remain release gates.
+   Git and native lock writes roll back together on reported installation failure;
+   crash recovery and concurrent installers remain unsupported.
 5. Qt Quick GUI, CGAL 2D/mesh inspection, and mlpack regression adapters execute
    real applications. Desktop smoke has passed on macOS ARM64 offscreen. Android
    shell passed an actual Android 14 ARM64 emulator installation, launch, timer,
@@ -150,3 +151,9 @@ newline assumption; the assertion now normalizes CRLF before checking the
 message. Optional Qt 6.7 desktop builds are pinned to macOS 14 because the
 macOS-latest SDK removed AGL, which that Qt package still links. Android retains
 its independently verified Qt 6.7.3 toolchain. Latest hosted runs remain pending.
+
+Installation failure tests now verify lock rollback when the second lock path is
+unwritable, reject removed native dependencies with `--locked`, and remove stale
+native registrations on a normal install. Verified content-addressed artifacts
+may remain unreferenced after a failed install. This is exception/error rollback,
+not a crash-safe two-file database transaction.

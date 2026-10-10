@@ -100,3 +100,9 @@ when scalar-only callbacks do not trigger object GC. C++ hosts can monitor
 `Heap::stats().retainedRootSlots` and `NativeResources::trackedLeaseSlots()`;
 these counts include expired entries awaiting the next bounded pruning pass.
 The ABI 2 resource identity cache removes an entry when its final lease ends.
+
+Installation keeps `kyna.lock` and `.kyna/native.lock` consistent on reported
+failures by preserving both old files until resolution completes. Removing the
+last native dependency removes its registration; `--locked` rejects that change.
+Unused content-addressed artifacts can remain after failure. Concurrent installs
+and recovery from a process or machine crash are not supported transaction modes.

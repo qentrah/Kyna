@@ -51,6 +51,27 @@ with tempfile.TemporaryDirectory(prefix="kyna-native-packages-") as folder:
     (project/"kyna.toml").write_text(f'[project]\nentry = "main.ky"\n[dependencies.ml.native]\nversion = "1.0.16"\ntarget = "{target}"\nabi = 2\npath = "{ml.as_posix()}"\nsha256 = "{checksum}"\n')
     run(["install"],cwd=project)
     run(["install","--locked"],cwd=project)
+    # A second lock write failure restores the first lock, including removal.
+    native_lock = project/".kyna/native.lock"
+    before_native = native_lock.read_bytes()
+    source_lock = project/"kyna.lock"
+    before_source = source_lock.read_bytes()
+    original_manifest = (project/"kyna.toml").read_text()
+    source_lock.unlink(); source_lock.mkdir()
+    (project/"kyna.toml").write_text('[project]\nentry = "main.ky"\n[dependencies]\n')
+    run(["install"], False, cwd=project)
+    assert native_lock.read_bytes() == before_native
+    assert source_lock.is_dir()
+    source_lock.rmdir(); source_lock.write_bytes(before_source)
+    (project/"kyna.toml").write_text(original_manifest)
+    # Removing the final native dependency must remove its stale registration.
+    (project/"kyna.toml").write_text('[project]\nentry = "main.ky"\n[dependencies]\n')
+    run(["install", "--locked"], False, cwd=project)
+    assert native_lock.read_bytes() == before_native
+    run(["install"], cwd=project)
+    assert not native_lock.exists()
+    (project/"kyna.toml").write_text(original_manifest)
+    run(["install"], cwd=project)
     assert "[9]" in run(["run","main.ky"],cwd=project).stdout
     run(["build","main.ky","--output",project/"dist"],cwd=project)
     launcher=project/"dist"/("run.cmd" if sys.platform=="win32" else "run")
