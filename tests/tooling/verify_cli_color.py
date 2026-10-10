@@ -42,7 +42,7 @@ def main() -> int:
     environment = {**os.environ, "NO_COLOR": "1"}
     result = subprocess.run([str(binary), "run", "-"], input=b'logColor("red", "hello");',
                             capture_output=True, env=environment)
-    if result.returncode != 0 or result.stdout != b"hello\n":
+    if result.returncode != 0 or result.stdout.replace(b"\r\n", b"\n") != b"hello\n":
         failures.append("logColor must honor NO_COLOR")
     if failures:
         print("Kyna CLI color verification failed:", file=sys.stderr)

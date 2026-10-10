@@ -15,7 +15,7 @@ jobs:
             qt-arch: linux_gcc_64
           - os: windows-latest
             qt-arch: win64_msvc2019_64
-          - os: macos-latest
+          - os: macos-14
             qt-arch: clang_64
     runs-on: ${{ matrix.os }}
     env:

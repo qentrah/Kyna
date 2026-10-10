@@ -144,3 +144,9 @@ root, and verify bounded metadata and exactly-once destruction. The ABI resource
 identity cache drops the final lease's entry. Extension namespace completion,
 hover, and definitions read unsaved imported modules, retain alias targets, and
 follow relative re-exports; six extension tests pass, and the VSIX was rebuilt.
+
+Hosted core builds passed on Linux and macOS. Windows exposed a color-fixture
+newline assumption; the assertion now normalizes CRLF before checking the
+message. Optional Qt 6.7 desktop builds are pinned to macOS 14 because the
+macOS-latest SDK removed AGL, which that Qt package still links. Android retains
+its independently verified Qt 6.7.3 toolchain. Latest hosted runs remain pending.
