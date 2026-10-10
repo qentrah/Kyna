@@ -23,6 +23,14 @@ LanguageSessionOptions makeSessionOptions(const Options &options) {
         result.sourceOverlays.insert_or_assign(std::filesystem::weakly_canonical(*path), *content);
       }
     }
+  } catch (const std::exception &error) {
+    Diagnostic diagnostic{error.what(), {}, false, "KCLI1002"};
+    diagnostic.category = "usage";
+    diagnostic.notes.push_back("Source overlay: " + options.sourceOverlay.string());
+    diagnostic.help = "Use [[source]] records with an absolute path and string content; keep the overlay below 16 MiB.";
+    throw KynaError(diagnostic);
+  }
+  try {
     auto libraries = options.nativeLibraries;
     auto root = discoverProject(options.input.empty() || options.input == "-" ? std::filesystem::current_path() : std::filesystem::absolute(options.input));
     if (!root.empty() && std::filesystem::exists(root / ".kyna/native.lock")) {

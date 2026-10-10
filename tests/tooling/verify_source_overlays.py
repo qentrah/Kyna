@@ -16,4 +16,11 @@ with tempfile.TemporaryDirectory() as directory:
     overlay.write_text('[[source]]\npath = '+json.dumps(str(dep))+'\ncontent = '+json.dumps('export var value: int = "wrong";')+'\n')
     r=run(['--source-overlay',str(overlay)]);assert r.returncode!=0
     assert any(pathlib.Path(d['file']).resolve()==dep.resolve() for d in json.loads(r.stderr)['diagnostics'])
+    overlay.write_text('[[source]\n')
+    r=run(['--source-overlay',str(overlay)])
+    assert r.returncode==2
+    payload=json.loads(r.stderr)
+    assert payload['schema']=='kyna.diagnostic/v1'
+    assert payload['diagnostics'][0]['code']=='KCLI1002',payload
+    assert payload['diagnostics'][0]['category']=='usage',payload
 print('Unsaved dependency overlay checks passed')
