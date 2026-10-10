@@ -5,6 +5,9 @@ on:
     paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', '.github/workflows/native-packages.yml']
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   desktop:
     strategy:
@@ -87,6 +90,8 @@ jobs:
           api-level: 34
           arch: arm64-v8a
           target: google_apis
+          emulator-boot-timeout: 1800
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel off -no-snapshot
           script: |
             adb install build-android/kyna-smoke.apk
             adb logcat -c

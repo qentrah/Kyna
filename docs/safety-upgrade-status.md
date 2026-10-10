@@ -157,3 +157,9 @@ unwritable, reject removed native dependencies with `--locked`, and remove stale
 native registrations on a normal install. Verified content-addressed artifacts
 may remain unreferenced after a failed install. This is exception/error rollback,
 not a crash-safe two-file database transaction.
+
+Hosted optional builds exposed a scoped Armadillo imported target in the C++
+oracle; it now resolves Armadillo in its own CMake directory. The hosted Apple
+runner cannot initialize nested HVF acceleration. Its emulator job is trying
+software acceleration with a bounded boot timeout; that hosted smoke remains
+unverified until it passes. Local physical-host emulator smoke passed.

@@ -21,6 +21,9 @@ with tempfile.TemporaryDirectory(prefix="kyna-native-packages-") as folder:
         run(["--native-library",library,"run",source(code)],False)
     source('fn failure(): void { var bad: any = 1; bad(); } var timer=guiAfter(1,failure); guiRun();')
     run(["--native-library",gui,"run",project/"main.ky"],False)
+    for dimensions in ['0, 480', '-1, 480', '2147483648, 480', '640, 2147483648']:
+        result = run(["--native-library", gui, "run", source('var f: any = guiWindow; f("Invalid", '+dimensions+');')], False)
+        assert "KNATIVE1003" in result.stderr and "positive 32-bit" in result.stderr
     # Callback contracts must also hold when static typing is explicitly bypassed.
     for code, expected in [
         ('fn wrong(value: int): void {} var callback: any = wrong; guiAfter(1,callback);', 'KNATIVE1003'),
