@@ -23,7 +23,9 @@ remaining approved plan. It is not a release-completion claim.
 - Modular extension diagnostics/executable discovery/completion catalogs;
   imported-file Problems entries, related locations, Unicode ranges, stale
   process cancellation, dependency rechecks, failure handling, and type syntax.
-  VSIX 1.0.16 packages successfully. Full project-view/command extraction remains open; unsaved dependency overlays now
+  VSIX 1.0.16 packages successfully. Focused project discovery, route metadata,
+  views, commands, document execution, and language feature modules now replace
+  the large activation file. Unsaved dependency overlays now
   pass source text through TOML overlays rather than reading stale disk text.
 - Typed host native functions shared by checker, inspection, VM, and tree-walk;
   runtime argument/result checks including calls through `any`, rooted arguments,
@@ -40,8 +42,10 @@ remaining approved plan. It is not a release-completion claim.
 
 1. Complete nullability/callback/recursive inference and mathematical audit
    beyond the added focused regressions; broaden cross-engine control-flow tests.
-2. Finish extension module extraction, type hover
-   and navigation coverage, and CLI/extension agreement tests.
+2. Extension module extraction and relative named/namespace type hover/navigation
+   are implemented, with alias, re-export, visibility, cycle, and unsaved-source
+   navigation tests. Bare-package navigation and broader CLI/extension agreement
+   coverage remain open.
 3. Retained roots, callback ownership, opaque leases, and C ABI 2 are implemented.
    Callback GC, runtime/thread affinity, foreign/stale resources, and shutdown
    are tested through VM and tree-walk.
@@ -124,7 +128,8 @@ Android native loading now resolves the adapter beside the application library
 and loader failures include their underlying platform error. The rebuilt Release
 APK passed the lifecycle smoke again. Hosted platform CI is running through draft PR #6. Its initial Android setup
 failed because the setup action requested the retired SDK `tools` package; the
-workflow now explicitly requests `platform-tools`. Other platform results remain
+workflow now explicitly requests `platform-tools`. The workflow also now selects Qt’s `linux_gcc_64` archive and explicit Android
+API 28, matching the locally verified toolchain. Other platform results remain
 pending. All 58 CTests passed in the local optional-adapter configuration.
 
 

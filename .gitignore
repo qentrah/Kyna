@@ -18,3 +18,4 @@ examples/my-app/
 __pycache__/
 *.py[cod]
 aqtinstall.log
+node_modules/
