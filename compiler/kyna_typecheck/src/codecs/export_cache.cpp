@@ -11,7 +11,7 @@
 namespace kyna::export_cache {
 namespace {
 
-constexpr const char *kMagic = "KYC2-contracts-20261010";
+constexpr const char *kMagic = "KYC3-contracts-" KYNA_EXPORT_CACHE_BUILD_ID;
 
 std::string stampLine(const std::filesystem::path &path) {
   std::error_code error;

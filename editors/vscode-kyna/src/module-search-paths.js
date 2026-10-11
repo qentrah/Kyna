@@ -1,6 +1,7 @@
 // Reads project dependency search roots with the same ordering as CLI sessions.
 const vscode = require('vscode');
 const path = require('path');
+const os = require('os');
 const { parse } = require('smol-toml');
 const { findProjectRoot } = require('./project-context');
 
@@ -26,6 +27,12 @@ async function moduleSearchPaths(document) {
   const manifest = await readTable(path.join(root, 'kyna.toml'));
   for (const entry of Object.values(manifest?.dependencies || {})) {
     if (entry && typeof entry.path === 'string') paths.push(path.resolve(root, entry.path));
+    else if (entry && typeof entry.git === 'string') {
+      const cache = process.platform === 'win32' ? (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA,'Kyna/cache') : path.join(os.tmpdir(),'kyna-cache')) :
+        process.platform === 'darwin' ? path.join(os.homedir(),'Library/Caches/Kyna') :
+        path.join(process.env.XDG_CACHE_HOME || path.join(os.homedir(),'.cache'),'kyna');
+      paths.push(path.join(cache,'git'));
+    }
   }
   return paths;
 }

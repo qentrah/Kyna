@@ -1,6 +1,7 @@
 // Resolves exported declarations through named/namespace imports and re-exports.
 const vscode = require('vscode');
 const path = require('path');
+const fs = require('fs');
 const { moduleSearchPaths } = require('./module-search-paths');
 function bindings(list) {
   return list.split(',').map(value => value.trim().replace(/^type\s+/, ''))
@@ -18,11 +19,26 @@ async function openModule(document, specifier) {
       [base, ...['.kyna.d', '.kyna', '.d.ky', '.ky.d', '.ky'].map(suffix => base + suffix)];
     for (const file of candidates) {
       try { return await vscode.workspace.openTextDocument(vscode.Uri.file(file)); } catch (_) {}
+      try {
+        if (!fs.statSync(file).isDirectory()) continue;
+        const documents = [];
+        const files = fs.readdirSync(file).filter(name => /\.(?:ky|kyna|kyna\.d|ky\.d|d\.ky)$/.test(name)).sort();
+        if (files.length > 64) return undefined;
+        for (const name of files) documents.push(await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(file,name))));
+        if (documents.length) return {fileName:file, packageDocuments:documents, getText:()=>documents.map(item=>item.getText()).join('\n')};
+      } catch (_) {}
     }
   }
   return undefined;
 }
 async function resolveExport(document, name, seen) {
+  if (document.packageDocuments) {
+    for (const member of document.packageDocuments) {
+      const found = await resolveExport(member,name,seen);
+      if (found) return found;
+    }
+    return undefined;
+  }
   const key = `${document.fileName}\0${name}`;
   if (seen.has(key) || seen.size >= 64) return undefined;
   seen.add(key);
@@ -72,6 +88,12 @@ async function resolveImportedDeclaration(document, name, receiver, seen = new S
   return undefined;
 }
 async function exportedSymbols(document, seen = new Set()) {
+  if (document.packageDocuments) {
+    const entries = new Map();
+    for (const member of document.packageDocuments)
+      for (const entry of await exportedSymbols(member,seen)) entries.set(entry.name,entry);
+    return [...entries.values()];
+  }
   if (seen.has(document.fileName) || seen.size >= 64) return [];
   seen.add(document.fileName);
   const entries = new Map();

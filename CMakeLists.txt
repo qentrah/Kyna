@@ -201,6 +201,8 @@ if(KYNA_BUILD_TESTS AND KYNA_WITH_GUI AND KYNA_WITH_GEOMETRY AND KYNA_WITH_ML)
 endif()
 
 if(KYNA_BUILD_TESTS)
+  add_test(NAME kyna_release_packaging
+           COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/tooling/test_release_packaging.py")
   enable_testing()
   find_program(KYNA_NODE_EXECUTABLE node)
   if(KYNA_NODE_EXECUTABLE)

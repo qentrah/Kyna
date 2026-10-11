@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, target: linux-x86_64, archive: tar }
+          - { os: ubuntu-24.04, target: linux-x86_64, archive: tar }
           - { os: ubuntu-24.04-arm, target: linux-arm64, archive: tar }
           - { os: macos-15-intel, target: darwin-x86_64, archive: tar }
           - { os: macos-14, target: darwin-arm64, archive: tar }
@@ -52,23 +52,24 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         shell: bash
-        run: |
-          test -n "$CERTIFICATE_BASE64" -a -n "$CERTIFICATE_PASSWORD" -a -n "$SIGNING_IDENTITY"
-          echo "$CERTIFICATE_BASE64" | base64 --decode > signing.p12
-          security create-keychain -p kyna-signing build.keychain
-          security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k kyna-signing build.keychain
-          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" package/bin/ky package/bin/kyna
+        run: python3 build_tools/packaging/sign_payload.py package
       - name: Sign Windows executables
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'Windows'
         env:
           CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        shell: pwsh
+        shell: bash
+        run: python3 build_tools/packaging/sign_payload.py package
+      - name: Refresh signed binary inventory
+        shell: bash
         run: |
-          if (-not $env:CERTIFICATE_BASE64 -or -not $env:CERTIFICATE_PASSWORD) { throw "Windows signing secrets are required for stable releases." }
-          [IO.File]::WriteAllBytes("signing.pfx", [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
-          & (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f signing.pfx /p $env:CERTIFICATE_PASSWORD package/bin/ky.exe package/bin/kyna.exe
+          python3 - <<'PYCODE'
+          import hashlib,json,pathlib
+          root=pathlib.Path('package');file=root/'runtime-inventory.json';inventory=json.loads(file.read_text())
+          for binary in inventory['binaries']:
+              with (root/binary['path']).open('rb') as stream: binary['sha256']=hashlib.file_digest(stream,'sha256').hexdigest()
+          file.write_text(json.dumps(inventory,indent=2)+'\n')
+          PYCODE
       - name: Create Unix archive
         if: matrix.archive == 'tar'
         shell: bash
@@ -84,10 +85,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         shell: bash
-        run: |
-          test -n "$APPLE_ID" -a -n "$APPLE_TEAM_ID" -a -n "$APPLE_APP_PASSWORD"
-          ditto -c -k --keepParent package kyna-notarization.zip
-          xcrun notarytool submit kyna-notarization.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+        run: python3 build_tools/packaging/notarize_payload.py package
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: kyna-${{ matrix.target }}.*
@@ -116,10 +114,15 @@ jobs:
           name: kyna-vscode-extension
           path: editors/vscode-kyna/kyna-language-support-*.vsix
 
+  native:
+    name: Verify and package optional libraries
+    uses: ./.github/workflows/native-packages.yml
+    secrets: inherit
+
   release:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [cli, extension]
+    needs: [cli, extension, native]
     runs-on: ubuntu-latest
     steps:
       - name: Enforce the stable signing gate

@@ -34,7 +34,7 @@ def main():
             if file.is_file():
                 relative = file.relative_to(args.runtime_files).as_posix()
                 if relative in files:
-                    if file.resolve() == args.library.resolve():
+                    if file.resolve() == args.library.resolve() or file.read_bytes() == files[relative]:
                         continue
                     parser.error('runtime file collides with adapter package: ' + relative)
                 files[relative] = file.read_bytes()

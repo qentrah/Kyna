@@ -11,9 +11,10 @@ import tempfile
 def main():
     binary = str(Path(sys.argv[1]).resolve())
     def check(source, code=None, name=None):
-        arguments = [binary, 'check', '-', '--no-color', '--diagnostic-format', 'json']
-        if name: arguments += ['--source-name', str(name)]
-        result = subprocess.run(arguments, input=source, text=True, capture_output=True, timeout=20)
+        if name:
+            Path(name).write_text(source)
+        arguments = [binary, 'check', str(name) if name else '-', '--no-color', '--diagnostic-format', 'json']
+        result = subprocess.run(arguments, input=None if name else source, text=True, capture_output=True, timeout=20)
         diagnostics = json.loads(result.stderr)['diagnostics'] if result.stderr else []
         if code:
             assert result.returncode == 1, (source, result.stderr)
@@ -74,6 +75,13 @@ def main():
         entry = root / 'main.ky'
         source = 'import { add as plus, count } from "./library.ky"; var x: int = plus(count);'
         for _ in range(2): check(source, name=entry)
+        # Foreign compiler/checker cache versions are misses, never trusted contracts.
+        cache = Path(str(library) + '.kyc')
+        assert cache.is_file()
+        old_cache = cache.read_text()
+        cache.write_text('KYC3-contracts-foreign-compiler\n' + old_cache.split('\n', 1)[1])
+        check(source, name=entry)
+        assert cache.read_text().splitlines()[0] != 'KYC3-contracts-foreign-compiler'
         for _ in range(2):
             check('import { add as plus } from "./library.ky"; plus("bad");', 'KSEM1202', entry)
             check('import * as lib from "./library.ky"; lib.add();', 'KSEM1201', entry)

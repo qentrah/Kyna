@@ -1,5 +1,6 @@
 name: Optional native packages
 on:
+  workflow_call:
   workflow_dispatch:
     inputs:
       android-emulator-smoke:
@@ -10,6 +11,8 @@ on:
     paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', 'build_tools/packaging/**', 'tests/native/**', '.github/workflows/native-packages.yml']
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # Preserve long native dependency builds and their reusable binary caches.
@@ -20,15 +23,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
+            target: linux-x86_64
             qt-arch: linux_gcc_64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            system-qt: true
           - os: windows-latest
+            target: windows-x86_64
             qt-arch: win64_msvc2019_64
           - os: macos-14
+            target: darwin-arm64
+            qt-arch: clang_64
+          - os: macos-15-intel
+            target: darwin-x86_64
             qt-arch: clang_64
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite
     steps:
       - uses: actions/checkout@v7
       - name: Install Unix native build tools
@@ -37,11 +50,24 @@ jobs:
       - name: Install macOS native build tools
         if: runner.os == 'macOS'
         run: brew install autoconf autoconf-archive automake libtool
+      - name: Select the Qt-compatible Intel SDK
+        if: matrix.target == 'darwin-x86_64'
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Install system Qt on Linux ARM64
+        if: matrix.system-qt
+        run: |
+          sudo apt-get install -y qt6-base-dev qt6-declarative-dev qt6-base-dev-tools qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript qml6-module-qtquick qml6-module-qtquick-window
+          echo "QT_ROOT_DIR=/usr/lib/qt6" >> "$GITHUB_ENV"
       - uses: jurplel/install-qt-action@v4
+        if: ${{ !matrix.system-qt }}
         with:
           version: '6.7.3'
           arch: ${{ matrix.qt-arch }}
           install-deps: true
+      - uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -54,10 +80,40 @@ jobs:
       - run: ctest --test-dir build-native -C Release --output-on-failure
       - name: Relocate and test native application packages
         run: python3 build_tools/packaging/stage_delivery.py --build build-native --output portable-delivery --native
+      - name: Sign stable macOS native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: python3 build_tools/packaging/sign_payload.py portable-delivery/gui portable-delivery/geometry portable-delivery/ml
+      - name: Sign stable Windows native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'Windows'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: python3 build_tools/packaging/sign_payload.py portable-delivery/gui portable-delivery/geometry portable-delivery/ml
+      - name: Notarize stable macOS native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$APPLE_ID" -a -n "$APPLE_TEAM_ID" -a -n "$APPLE_APP_PASSWORD"
+          mkdir notarization
+          cp -R portable-delivery/gui portable-delivery/geometry portable-delivery/ml notarization/
+          python3 build_tools/packaging/notarize_payload.py notarization
+      - name: Archive verified packages
+        run: python3 build_tools/packaging/archive_delivery.py --delivery portable-delivery --target ${{ matrix.target }} --output release-assets --native-only
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: release-assets/kyna-*
       - uses: actions/upload-artifact@v6
         with:
-          name: native-${{ matrix.os }}
-          path: portable-delivery/**
+          name: native-${{ matrix.target }}
+          path: release-assets/**
   android-arm64:
     runs-on: macos-14
     timeout-minutes: 60

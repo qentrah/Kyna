@@ -72,8 +72,8 @@ if [ -d "$payload_root/lib" ]; then
   cp -Rf "$payload_root/lib"/. "$prefix/lib/"
 fi
 if [ -d "$payload_root/licenses" ]; then
-  mkdir -p "$prefix/share/kyna/licenses"
-  cp -Rf "$payload_root/licenses"/. "$prefix/share/kyna/licenses/"
+  mkdir -p "$prefix/licenses"
+  cp -Rf "$payload_root/licenses"/. "$prefix/licenses/"
 fi
 if [ -f "$prefix/bin/ky" ]; then cp "$prefix/bin/ky" "$prefix/bin/ky.previous"; fi
 if [ -f "$prefix/bin/kyna" ]; then cp "$prefix/bin/kyna" "$prefix/bin/kyna.previous"; fi
@@ -89,6 +89,11 @@ if [ -d "$share_source" ]; then cp -R "$share_source"/. "$prefix/share/kyna/"; f
   printf '%s\n' "bin/ky" "bin/kyna"
   [ -f "$prefix/bin/ky.previous" ] && printf '%s\n' "bin/ky.previous"
   [ -f "$prefix/bin/kyna.previous" ] && printf '%s\n' "bin/kyna.previous"
+  for directory in lib/runtime licenses; do
+    if [ -d "$payload_root/$directory" ]; then
+      (cd "$payload_root" && find "$directory" -type f)
+    fi
+  done
 } > "$prefix/share/kyna/install-manifest.txt"
 
 case ":$PATH:" in *":$prefix/bin:"*) ;; *)

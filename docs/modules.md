@@ -61,3 +61,9 @@ Type re-export lists name existing bindings; direct `export ... from` syntax is
 not supported.
 
 For explicit C++ module loading, see [Native bindings](native-bindings.md).
+
+Checked export cache records include the Kyna release version and a SHA-256 build
+fingerprint of explicit compiler/checker source lists and their checked type/syntax
+contracts. CMake watches those inputs and rebuilds the cache version when they
+change. Foreign cache versions are misses. Source stamps still compare exact
+transitive source bytes, including same-size edits with restored timestamps.

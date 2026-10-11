@@ -16,6 +16,20 @@ def notices(root, build, destination):
     shutil.copy2(root / 'docs/native-dependencies.md', licenses / 'DEPENDENCIES.md')
     for file in (root / 'docs/licenses/native').iterdir():
         if file.is_file(): shutil.copy2(file, licenses / file.name)
+    if sys.platform.startswith('linux'):
+        inventory=json.loads((destination/'runtime-inventory.json').read_text())
+        packages={}
+        for binary in inventory['binaries']:
+            owner=subprocess.run(['dpkg-query','-S',binary['source']],capture_output=True,text=True)
+            if owner.returncode:continue
+            for line in owner.stdout.splitlines():
+                package=line.split(': ',1)[0].split(':')[0]
+                copyright=pathlib.Path('/usr/share/doc')/package/'copyright'
+                if not copyright.is_file():continue
+                shutil.copy2(copyright,licenses/(package+'-copyright.txt'))
+                version=subprocess.check_output(['dpkg-query','-W','-f=${Version}',package],text=True)
+                packages[package]={'version':version,'notice':package+'-copyright.txt'}
+        (licenses/'distribution-packages.json').write_text(json.dumps(packages,indent=2)+'\n')
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -28,6 +42,9 @@ def main():
     output.mkdir(parents=True)
     cli=output/'cli'
     run('cmake','--install',build,'--config','Release','--prefix',cli)
+    # Optional adapters are distributed with their own verified dependency closure.
+    # CMake's development installation must not leak unrelocated copies into CLI archives.
+    shutil.rmtree(cli/'lib/kyna/native',ignore_errors=True)
     suffix='.exe' if os.name=='nt' else ''
     searches=[p for p in (build/'vcpkg_installed').glob('*/bin') if p.is_dir()]
     stage(cli,[pathlib.Path('bin/ky'+suffix),pathlib.Path('bin/kyna'+suffix)],searches)
@@ -53,6 +70,9 @@ def main():
             package=output/name;package.mkdir();library=package/candidates[0].name;shutil.copy2(candidates[0],library)
             stage(package,[pathlib.Path(library.name)],searches+[candidates[0].parent],qtpaths if name=='gui' else None)
             notices(root,build,package)
+            if name=='gui':
+                qt_version=json.loads((package/'runtime-inventory.json').read_text())['qt_version']
+                run(sys.executable,root/'build_tools/packaging/qt_source_notices.py','--version',qt_version,'--payload',package,'--cache',build/'qt-source-material')
             libraries.append(library)
         run(sys.executable,root/'tests/native/verify_optional_packages.py',ky,root,*libraries,env=environment)
     shutil.rmtree(moved)

@@ -5,7 +5,7 @@ code backend. Each behavior below has executable regression coverage.
 
 | Area | Verification and result |
 | --- | --- |
-| Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm dependency changes |
+| Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm on-disk dependency changes and compiler/checker build fingerprint invalidation |
 | Integer boundaries | `test_numeric_parity.cpp`: checked overflow, signed minimum literal, division/remainder edge cases and unary underflow |
 | Numeric comparison | Exact int/int and mixed int/float equality and ordering, including adjacent integers above 2^53 and both 2^63 boundaries; shared comparison implementation avoids rounding integer operands |
 | Control flow | Duplicate/default ordering codes, constant compatible cases, adjacent large switch cases, nested labeled loops, switch break/continue targets and function boundaries |
@@ -37,6 +37,8 @@ gate are distinct. A dedicated physical CI runner has not been provisioned.
 Rams `quick_review` was requested with `via: rules` for GUI edits, but the service
 reported exhausted review credits. Direct application testing does not replace
 that outstanding review. Bare-package extension navigation now follows native lockfiles and path dependencies,
-using a TOML parser and matching the compiler's declaration suffix priority. Twelve
-focused extension tests pass. Exact transitive license/source inventories and
-signing/distribution gates remain release blockers.
+using a TOML parser and matching the compiler's declaration suffix priority. Thirteen
+focused extension tests pass. Verified source archives and extracted notices now
+cover the local CLI, Qt, CGAL and mlpack dependency closures. These inventories do
+not replace license clearance. Stable signing and final platform packaging gates
+remain required. Real app recordings are in [videos](videos/README.md).

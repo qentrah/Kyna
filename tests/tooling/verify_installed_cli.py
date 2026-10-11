@@ -140,6 +140,9 @@ def main() -> int:
                     "installer did not record its managed files")
             require(run(installed_cli, "--version").returncode == 0, "installed ky --version failed")
             require(run(installed_alias, "--version").returncode == 0, "installed kyna --version failed")
+            runtime_files = [p.relative_to(cli.parent.parent) for p in (cli.parent.parent / "lib/runtime").rglob("*") if p.is_file()]
+            for relative in runtime_files:
+                require((prefix / relative).is_file(), f"installer omitted runtime dependency: {relative}")
 
             project = root / "hello"
             created = run(installed_cli, "--no-color", "--no-interactive", "new", project,
@@ -169,6 +172,8 @@ def main() -> int:
                         break
                     time.sleep(0.05)
             require(not installed_cli.exists() and not installed_alias.exists(), "self uninstall left executables behind")
+            for relative in runtime_files:
+                require(not (prefix / relative).exists(), f"self uninstall left managed runtime dependency: {relative}")
         finally:
             server.shutdown()
             thread.join(timeout=5)

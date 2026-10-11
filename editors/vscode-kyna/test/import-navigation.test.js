@@ -105,3 +105,16 @@ test('bare package navigation follows native locks and path dependencies with co
     assert.equal(await resolveImportedDeclaration(main,'Shape'),undefined);
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 });
+
+test('directory packages expose declarations from each source file', async () => {
+  const fs=require('node:fs'),os=require('node:os');
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'kyna-package-navigation-'));
+  try {
+    const packageRoot=path.join(root,'pkg');fs.mkdirSync(packageRoot);
+    fs.writeFileSync(path.join(packageRoot,'a.ky'),'');fs.writeFileSync(path.join(packageRoot,'b.ky'),'');
+    document(path.join(packageRoot,'a.ky'),'export type First = int;');
+    const target=document(path.join(packageRoot,'b.ky'),'export type Second = string;');
+    const main=document(path.join(root,'main.ky'),'import type { Second } from "./pkg";');
+    assert.deepEqual(await resolveImportedDeclaration(main,'Second'),{document:target,name:'Second'});
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
