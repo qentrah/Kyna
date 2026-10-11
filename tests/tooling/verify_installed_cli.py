@@ -182,7 +182,10 @@ def main() -> int:
             require(removed.returncode == 0, removed.stderr)
             if os.name == "nt":
                 for _ in range(100):
-                    if not installed_cli.exists() and not installed_alias.exists():
+                    # The Windows helper removes executables first and the manifest last.
+                    # Wait for its completion marker before inspecting managed SDK/runtime files.
+                    if (not installed_cli.exists() and not installed_alias.exists()
+                            and not (prefix / "share/kyna/install-manifest.txt").exists()):
                         break
                     time.sleep(0.05)
             require(not installed_cli.exists() and not installed_alias.exists(), "self uninstall left executables behind")
