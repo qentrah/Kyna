@@ -83,6 +83,7 @@ private:
   std::map<std::string, Cell> values;
   std::shared_ptr<Environment> enclosing;
   friend class Heap;
+  friend class Interpreter;
 };
 struct OpaqueNativeResource {
   virtual ~OpaqueNativeResource() = default;

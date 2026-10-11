@@ -15,6 +15,7 @@ struct CallV2 {
   ModuleV2 &owner;
   Heap &heap;
   std::vector<std::uint64_t> borrowed;
+  std::optional<Diagnostic> callbackDiagnostic;
   CallV2(ModuleV2 &, Heap &);
   ~CallV2();
 };

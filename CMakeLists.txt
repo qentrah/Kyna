@@ -189,7 +189,9 @@ if(KYNA_BUILD_TESTS AND KYNA_WITH_ML)
   add_executable(kyna_optional_oracle tests/native/test_optional_oracle.cpp)
   target_include_directories(kyna_optional_oracle PRIVATE $<TARGET_PROPERTY:kyna_ml,INCLUDE_DIRECTORIES>)
   target_link_libraries(kyna_optional_oracle PRIVATE kyna_embedding ${ARMADILLO_LIBRARIES})
-  if(NOT MSVC)
+  if(MSVC)
+    target_compile_options(kyna_optional_oracle PRIVATE /UNDEBUG)
+  else()
     target_compile_options(kyna_optional_oracle PRIVATE -UNDEBUG)
   endif()
   add_test(NAME kyna_optional_oracle COMMAND kyna_optional_oracle $<TARGET_FILE:kyna_ml>)
@@ -203,7 +205,10 @@ if(KYNA_BUILD_TESTS)
   find_program(KYNA_NODE_EXECUTABLE node)
   if(KYNA_NODE_EXECUTABLE)
     add_test(NAME kyna_extension_diagnostics
-             COMMAND "${KYNA_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/editors/vscode-kyna/test/diagnostics.test.js")
+             COMMAND "${KYNA_NODE_EXECUTABLE}" --test
+                     "${CMAKE_CURRENT_SOURCE_DIR}/editors/vscode-kyna/test/diagnostics.test.js"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/editors/vscode-kyna/test/import-navigation.test.js"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/editors/vscode-kyna/test/document-commands.test.js")
   endif()
   add_test(NAME kyna_benchmark_comparison
            COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/tooling/test_benchmark_comparison.py")
@@ -471,7 +476,8 @@ endif()
 endif()
 install(FILES README.md LICENSE DESTINATION share/kyna)
 install(DIRECTORY docs DESTINATION share/kyna)
-install(DIRECTORY examples DESTINATION share/kyna FILES_MATCHING PATTERN "*.kyna")
+install(DIRECTORY examples DESTINATION share/kyna FILES_MATCHING
+  PATTERN "*.kyna" PATTERN "*.ky" PATTERN "*.kyna.d" PATTERN "*.ky.d" PATTERN "*.off")
 install(DIRECTORY templates DESTINATION share/kyna OPTIONAL)
 
 set(CPACK_PACKAGE_NAME "kyna")

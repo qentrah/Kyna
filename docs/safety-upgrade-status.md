@@ -175,3 +175,36 @@ sizes, and support matching-input baseline comparisons. See
 [the native workload checkpoint](performance/native-workloads-checkpoint.json).
 GUI window dimensions reject nonpositive values and 32-bit overflow through
 `any`, with stable `KNATIVE1003` failures.
+
+Final Android source was rebuilt and the signed APK again passed actual ARM64
+installation and lifecycle smoke. Extension formatting now handles split UTF-8
+and cancelled/broken stdin safely; inspection cancels stale processes, respects
+save failures, and disposes its child on extension shutdown. All 11 focused Node
+tests pass. `ky build --native` now reports `KBUILD1004` for missing CMake and
+`KBUILD1005` for configuration/compiler failures, with bounded tool output in
+diagnostic notes. A test compiles an authored C++ ABI 2 module through that CLI
+path and invokes its typed resource exports from Kyna.
+
+Hosted optional-package CTests passed on macOS 14 and Linux at the earlier
+`ed6f234` checkpoint. Windows optional dependencies and hosted Android software
+emulation are still pending. Final callback regressions now preserve originating
+files/lines and stack frames across C ABI 2 for VM and imported tree-walk
+callbacks. Tree-walk language throws retain their language error code rather than
+being classified as a C++ implementation exception. Regression-oracle assertions
+are enabled for MSVC Release builds as well.
+
+A teardown regression reproduced recursive tree-walk environment/function cycles
+surviving interpreter destruction. Owned environments are now tracked weakly and
+cleared before heap teardown; nested callback and global environments expire in
+the regression test. This fixes session shutdown; it does not claim mid-session
+collection of all tree-walk shared-ownership cycles.
+
+The final local Release suite passed 56 tests and the optional-library suite
+passed 58 tests. Core hosted CI passed on Windows, macOS, and Linux at `ed6f234`.
+The hosted ARM64 emulator failed HVF initialization before boot. Hosted CI now
+uploads the cross-compiled APK separately; an explicit physical ARM64 runner job
+owns the application smoke gate. That runner has not been provisioned here.
+VSIX packaging includes type, native-binding, GUI/geometry/ML, dependency, and
+Android documentation, and installed examples include `.ky` modules and OFF data.
+
+The final lifetime changes also passed all 56 AddressSanitizer/UndefinedBehaviorSanitizer CTests locally. The verified current sanitizer build was archived before removing its generated checkout to recover space.

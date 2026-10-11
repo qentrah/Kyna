@@ -17,7 +17,9 @@ const { completionProvider, definitionProvider, hoverProvider, symbolProvider, c
 function activate(context) {
   const diagnostics = vscode.languages.createDiagnosticCollection('kyna');
   const inspectionOutput = vscode.window.createOutputChannel('Kyna Compiler');
-  const { formattingProvider, runActive, inspectActive } = createDocumentCommands(inspectionOutput);
+  const documentCommands = createDocumentCommands(inspectionOutput);
+  context.subscriptions.push(documentCommands);
+  const { formattingProvider, runActive, inspectActive } = documentCommands;
   const runButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   runButton.text = '$(play) Run Kyna';
   runButton.command = 'kyna.runFile';

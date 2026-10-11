@@ -18,7 +18,9 @@ mkdir -p "$staging/extension" "$staging/extension/examples" "$staging/extension/
   (cd "$staging/extension" && tar -xf -)
 (cd "$root/examples" && tar -cf - .) | (cd "$staging/extension/examples" && tar -xf -)
 cp "$root/docs/language-spec.md" "$root/docs/diagnostics.md" "$root/docs/stdlib.md" \
-  "$root/docs/database.md" "$root/docs/networking.md" "$staging/extension/docs/"
+  "$root/docs/database.md" "$root/docs/networking.md" \
+  "$root/docs/type-system.md" "$root/docs/native-bindings.md" "$root/docs/libraries.md" \
+  "$root/docs/android.md" "$root/docs/native-dependencies.md" "$staging/extension/docs/"
 
 (cd "$staging/extension" && npx --yes @vscode/vsce@3.9.2 package \
   --baseImagesUrl "$image_base" \

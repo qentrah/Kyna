@@ -106,3 +106,5 @@ failures by preserving both old files until resolution completes. Removing the
 last native dependency removes its registration; `--locked` rejects that change.
 Unused content-addressed artifacts can remain after failure. Concurrent installs
 and recovery from a process or machine crash are not supported transaction modes.
+
+Tree-walk environments, functions, and their heap values belong to the interpreter session. Closing the session clears owned environment bindings to release recursive function/module cycles; C++ callers must not invoke saved functions or use heap values after their owning session closes. Ordinary expired block environments are removed periodically from the weak teardown registry.

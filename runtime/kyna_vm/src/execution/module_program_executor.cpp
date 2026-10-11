@@ -113,6 +113,7 @@ ExecutionResult TreeWalkInterpreter::execute(const CheckedProgram &program) {
                                                                    : "KRT2301"};
     diagnostic.category = "runtime";
     diagnostic.callFrames = error.frames;
+    if (!error.frames.empty()) diagnostic.location = error.frames.front().span;
     if (error.value && !std::holds_alternative<std::nullptr_t>(error.value->cause.data))
       diagnostic.notes.push_back("cause: " + error.value->cause.display());
     diagnostic.help = "catch this Error or let the enclosing function propagate it";

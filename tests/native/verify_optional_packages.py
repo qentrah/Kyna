@@ -17,6 +17,33 @@ with tempfile.TemporaryDirectory(prefix="kyna-native-packages-") as folder:
     project=pathlib.Path(folder)
     def source(code):
         p=project/"main.ky";p.write_text(code);return p
+    # ky build --native compiles an authored C++ adapter, not just a staging shell.
+    native_source = project/"authored-native"
+    native_source.mkdir()
+    (native_source/"fixture.cpp").write_bytes((root/"tests/native/native_v2_fixture.cpp").read_bytes())
+    (native_source/"CMakeLists.txt").write_text(f'''cmake_minimum_required(VERSION 3.25)
+project(AuthoredNative LANGUAGES CXX)
+find_package(Threads REQUIRED)
+add_library(fixture MODULE fixture.cpp)
+target_compile_features(fixture PRIVATE cxx_std_20)
+target_include_directories(fixture PRIVATE "{(root/"sdk/kyna_embedding/include").as_posix()}" "{(root/"library/native/include").as_posix()}")
+target_link_libraries(fixture PRIVATE Threads::Threads)
+set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
+''')
+    authored_build = project/"authored-build"
+    run(["build", "--native", native_source, "--output", authored_build], cwd=project)
+    authored_library = next(authored_build.rglob("fixture.native"))
+    result = run(["--native-library", authored_library, "run", source('var r=createTestResource(); console.log(readTestResource(r));')])
+    assert result.stdout.strip() == "42"
+    missing = project/"no-cmake-project"
+    missing.mkdir()
+    failed = run(["--diagnostic-format", "json", "build", "--native", missing, "--output", project/"failed-native"], False, cwd=project)
+    import json
+    payload = json.loads(failed.stderr)
+    assert payload["diagnostics"][0]["code"] == "KBUILD1005", payload
+    absent_env = {**env, "PATH": ""}
+    failed = subprocess.run([str(ky), "--diagnostic-format", "json", "build", "--native", native_source, "--output", str(project/"absent-tool")], env=absent_env, cwd=project, capture_output=True, text=True, timeout=30)
+    assert failed.returncode == 2 and json.loads(failed.stderr)["diagnostics"][0]["code"] == "KBUILD1004", failed.stderr
     for library,code in [(ml,'mlTrain([[1.0, 2.0]], [1.0]);'),(ml,'var m = mlTrain([[1.0, 2.0]], [3.0, 5.0]); mlDispose(m); mlPredict(m, [[3.0]]);'),(geometry,'geometryOrientation([0.0], [1.0, 1.0], [2.0, 2.0]);')]:
         run(["--native-library",library,"run",source(code)],False)
     source('fn failure(): void { var bad: any = 1; bad(); } var timer=guiAfter(1,failure); guiRun();')

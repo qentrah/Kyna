@@ -4,18 +4,29 @@ const path = require('path');
 const fs = require('fs');
 const childProcess = require('child_process');
 const { executable } = require('./cli');
-function createDocumentCommands(inspectionOutput) {
+function createDocumentCommands(inspectionOutput, runner = childProcess) {
+let inspection;
+let inspectionGeneration = 0;
 function formatDocument(document, token) {
+  if (token.isCancellationRequested) return Promise.resolve([]);
   return new Promise((resolve, reject) => {
-    const process = childProcess.spawn(executable(document),
+    const process = runner.spawn(executable(document),
       ['fmt', '-', '--source-name', document.fileName, '--no-color', '--no-interactive'],
       { cwd: path.dirname(document.fileName), stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    process.stdout.on('data', chunk => { stdout += chunk.toString(); });
-    process.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    process.stdout.setEncoding('utf8');
+    process.stderr.setEncoding('utf8');
+    process.stdout.on('data', chunk => { stdout += chunk; });
+    process.stderr.on('data', chunk => { stderr += chunk; });
     const cancellation = token.onCancellationRequested(() => process.kill());
     process.on('error', error => { cancellation.dispose(); reject(error); });
+    process.stdin.on('error', error => {
+      cancellation.dispose();
+      process.kill();
+      if (token.isCancellationRequested) resolve([]);
+      else reject(error);
+    });
     process.on('close', code => {
       cancellation.dispose();
       if (token.isCancellationRequested) return resolve([]);
@@ -81,12 +92,20 @@ async function runActive(command) {
 async function inspectActive(command, title) {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'kyna') return;
-  await editor.document.save();
+  const generation = ++inspectionGeneration;
+  if (inspection) inspection.kill();
+  if (!await editor.document.save()) {
+    vscode.window.showErrorMessage(`Kyna ${command} stopped because the active file could not be saved.`);
+    return;
+  }
+  if (generation !== inspectionGeneration) return;
   const document = editor.document;
-  childProcess.execFile(executable(document),
+  inspection = runner.execFile(executable(document),
     [command, document.fileName, '--no-color'],
     { cwd: path.dirname(document.fileName), maxBuffer: 8 * 1024 * 1024 },
     (error, stdout, stderr) => {
+      if (generation !== inspectionGeneration) return;
+      inspection = undefined;
       inspectionOutput.clear();
       inspectionOutput.appendLine(`${title}: ${document.fileName}`);
       inspectionOutput.append(stdout);
@@ -97,6 +116,7 @@ async function inspectActive(command, title) {
 }
 
 
-return { formattingProvider, runActive, inspectActive };
+return { formattingProvider, runActive, inspectActive,
+  dispose() { ++inspectionGeneration; if (inspection) inspection.kill(); } };
 }
 module.exports = { createDocumentCommands };

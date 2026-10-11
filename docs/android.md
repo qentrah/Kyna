@@ -67,3 +67,12 @@ tar -xf build-release/verification/android-qt-6.7.3.tar.gz
 ```
 
 These archives are local verification backups, not release distributions.
+
+Hosted CI cross-compiles and uploads the ARM64 APK. GitHub's macOS VM failed
+`HVF` initialization even with software emulation requested, so application
+smoke is a separate manual workflow gate on a physical Apple Silicon runner
+labelled `kyna-android` (with the `self-hosted`, `macOS`, and `ARM64` labels).
+Provision Python, JDK 17, the Android SDK and emulator, and at least 8 GiB free;
+then enable `android-emulator-smoke` when dispatching Optional native packages.
+That job installs the build artifact and requires the lifecycle/callback/shutdown
+marker. A hosted build passing without this gate is compilation evidence only.

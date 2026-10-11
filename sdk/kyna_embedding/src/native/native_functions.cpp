@@ -1,5 +1,6 @@
 // Owns checked argument/result conversion and native exception translation.
 #include <kyna/language/native_functions.hpp>
+#include "native_exception_conversion.hpp"
 #include <kyna/language/native_lifetimes.hpp>
 #include <kyna/symbols/standard_library_symbols.hpp>
 #include <stdexcept>
@@ -72,7 +73,7 @@ NativeCallResult invokeNativeFunction(const NativeFunction &function,
   } catch (const KynaError &error) {
     return {{}, NativeCallFailure{error.diagnostic.code, error.diagnostic.message, {}, error.diagnostic}};
   } catch (const RuntimeThrownError &error) {
-    return {{}, NativeCallFailure{error.value ? error.value->code : "KNATIVE1005", error.what(), {}}};
+    return {{}, native::thrownFailure(error)};
   } catch (const std::exception &error) {
     return failure("KNATIVE1005", "native exception: " + std::string(error.what()));
   } catch (...) {
@@ -80,3 +81,16 @@ NativeCallResult invokeNativeFunction(const NativeFunction &function,
   }
 }
 } // namespace kyna
+
+namespace kyna::native {
+NativeCallFailure thrownFailure(const RuntimeThrownError &error) {
+  Diagnostic diagnostic{error.what(), {}, false,
+                        error.value && !error.value->code.empty() ? error.value->code : "KRT2301"};
+  diagnostic.category = "runtime";
+  diagnostic.callFrames = error.frames;
+  if (!error.frames.empty()) diagnostic.location = error.frames.front().span;
+  diagnostic.help = "catch this Error or fix the failing callback";
+  return {diagnostic.code, diagnostic.message, error.value ? error.value->cause : Value{},
+          std::move(diagnostic)};
+}
+}

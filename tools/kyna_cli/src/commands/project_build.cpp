@@ -17,7 +17,7 @@ struct Staging {
 
 int buildProject(const Options &options,std::ostream &output,std::ostream &errors) try {
  auto root=discoverProject();if(root.empty())root=fs::current_path();auto destination=fs::absolute(options.buildOutput).lexically_normal();
- if(options.buildNative){auto source=fs::absolute(options.input.empty()?root:fs::path(options.input));ProcessConfig config;config.program="cmake";config.args={"-S",source.string(),"-B",destination.string(),"-DCMAKE_BUILD_TYPE=Release"};auto host=productionRuntimeCapabilities();auto r=host.processes->spawn(config);if(r.failedToStart||r.exitCode)return 2;config.args={"--build",destination.string(),"--config","Release"};r=host.processes->spawn(config);return r.failedToStart?2:r.exitCode;}
+ if(options.buildNative)return buildNativeProject(options,root,destination,output);
  std::string error;auto entry=options.input.empty()?projectEntry(root,error):fs::absolute(options.input);if(!error.empty())buildFailure(error,"KBUILD1003","Set project.entry in kyna.toml or supply an entry file");
  auto sessionOptions=makeSessionOptions(options);sessionOptions.modulePaths.push_back(root);LanguageSession session(std::move(sessionOptions));auto result=session.check(entry);if(!result.ok())return renderResult(result,options,session,errors);
  if(fs::exists(destination))buildFailure("Output directory already exists","KBUILD1001","Choose a fresh --output path");

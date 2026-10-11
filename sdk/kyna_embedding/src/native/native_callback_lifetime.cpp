@@ -1,5 +1,6 @@
 // Owns retained callback roots, runtime activation, and thread-affinity checks.
 #include <kyna/language/native_lifetimes.hpp>
+#include "native_exception_conversion.hpp"
 #include <limits>
 namespace kyna {
 namespace {
@@ -71,6 +72,8 @@ NativeCallResult NativeLifetime::invokeCallback(std::uint64_t handle, std::span<
     return result;
   } catch (const KynaError &error) {
     return {{}, NativeCallFailure{error.diagnostic.code, error.diagnostic.message, {}, error.diagnostic}};
+  } catch (const RuntimeThrownError &error) {
+    return {{}, native::thrownFailure(error)};
   }
 }
 void NativeLifetime::close() {

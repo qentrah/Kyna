@@ -10,6 +10,7 @@ class Interpreter {
 public:
   explicit Interpreter(RuntimeCapabilities capabilities = productionRuntimeCapabilities(),
                        RuntimeInitializer initialize = {});
+  ~Interpreter();
   Value execute(const std::vector<StmtPtr> &program);
   Value executeIn(const std::vector<StmtPtr> &program, std::shared_ptr<Environment> module);
   Value evaluate(const ExprPtr &expression);
@@ -22,10 +23,16 @@ public:
   std::vector<Environment *> rootEnvironments() const;
   RuntimeCapabilities runtimeCapabilities() const { return capabilities; }
   std::shared_ptr<Environment> createModuleEnvironment() const {
-    return std::make_shared<Environment>(global);
+    return createEnvironment(global);
   }
 
 private:
+  // Environments and their closures are owned by this interpreter session.
+  // Weak tracking lets teardown break recursive shared ownership without
+  // extending the lifetime of ordinary block/call environments.
+  mutable std::vector<std::weak_ptr<Environment>> ownedEnvironments;
+  mutable std::size_t environmentsCreated{0};
+  std::shared_ptr<Environment> createEnvironment(std::shared_ptr<Environment>) const;
   Heap objectHeap;
   std::shared_ptr<Environment> global;
   std::shared_ptr<Environment> environment;

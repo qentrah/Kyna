@@ -58,7 +58,10 @@ static kyna_native_result_v2 invokeCallbackV2Impl(void *context, std::uint64_t h
     std::vector<Value> values; values.reserve(count);
     for (std::size_t i = 0; i < count; ++i) { values.push_back(storage->decode(arguments[i])); roots.protect(values.back()); }
     auto result = owner.lifetime->invokeCallback(handle, values);
-    if (result.failure) { storage->code = result.failure->code; storage->message = result.failure->message; }
+    if (result.failure) {
+      storage->code = result.failure->code; storage->message = result.failure->message;
+      owner.active.back()->callbackDiagnostic = result.failure->diagnostic;
+    }
     else {
       storage->resultRoot = owner.active.back()->heap.retain(result.value);
       output.value = storage->encode(result.value);

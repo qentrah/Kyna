@@ -43,6 +43,12 @@ std::vector<NativeFunction> loadModuleV2(std::shared_ptr<void> library, void *en
       if (result.error_code || result.error_message) converted.failure = NativeCallFailure{
         result.error_code ? result.error_code : "KNATIVE1005", result.error_message ? result.error_message : "native module failed", {}};
       else converted.value = arena.decode(result.value);
+      // A module may return a callback failure directly or after its UI loop ends.
+      // Keep matching provenance inside this call; no ABI fields or VM values leak.
+      if (converted.failure && call.callbackDiagnostic &&
+          call.callbackDiagnostic->code == converted.failure->code &&
+          call.callbackDiagnostic->message == converted.failure->message)
+        converted.failure->diagnostic = std::move(call.callbackDiagnostic);
       guard.release(); return converted;
     };
     functions.push_back(std::move(function));

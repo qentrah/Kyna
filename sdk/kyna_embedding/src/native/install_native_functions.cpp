@@ -22,7 +22,10 @@ void installNativeFunctions(Interpreter &interpreter, const std::vector<NativeFu
         return {interpreter.invoke(*function, std::vector<Value>(arguments.begin(), arguments.end())), std::nullopt};
       };
       auto result = invokeNativeFunction(function, arguments, interpreter.heap(), callbacks);
-      if (result.failure) throw KynaError({result.failure->message, {}, false, result.failure->code});
+      if (result.failure) {
+        if (result.failure->diagnostic) throw KynaError(*result.failure->diagnostic);
+        throw KynaError({result.failure->message, {}, false, result.failure->code});
+      }
       return result.value;
     };
     interpreter.globals()->define(function.name, Value(value), false);

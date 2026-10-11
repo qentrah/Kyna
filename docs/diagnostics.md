@@ -46,6 +46,8 @@ Additional checked-contract codes:
 | KBUILD1001 | invalid or occupied application output path |
 | KBUILD1002 | unavailable, duplicate, or invalid dependency |
 | KBUILD1003 | entry, staging, or filesystem failure |
+| KBUILD1004 | native build tool could not start |
+| KBUILD1005 | native configuration or compilation failed |
 
 The extension routes imported-file diagnostics to their source URI, preserves
 related locations, converts byte offsets to UTF-16 editor ranges, discards

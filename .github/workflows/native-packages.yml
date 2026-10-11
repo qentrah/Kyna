@@ -1,6 +1,11 @@
 name: Optional native packages
 on:
   workflow_dispatch:
+    inputs:
+      android-emulator-smoke:
+        description: Run ARM64 application smoke on the dedicated physical Mac runner
+        type: boolean
+        default: false
   pull_request:
     paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', '.github/workflows/native-packages.yml']
 permissions:
@@ -85,19 +90,34 @@ jobs:
       - name: Sign APK with an ephemeral smoke-test key
         shell: bash
         run: python3 tests/native/sign_android_smoke.py "$(find build-android -name '*.apk' -print -quit)" build-android/kyna-smoke.apk
+      - uses: actions/upload-artifact@v6
+        with:
+          name: android-arm64
+          path: build-android/**/*.apk
+
+  # Hosted macOS VMs cannot initialize HVF for nested ARM64 emulation. The
+  # application gate runs only on an explicitly provisioned physical runner;
+  # cross-compilation by itself never establishes Android target support.
+  android-emulator-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.android-emulator-smoke
+    needs: android-arm64
+    runs-on: [self-hosted, macOS, ARM64, kyna-android]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          name: android-arm64
+          path: android-artifacts
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: arm64-v8a
           target: google_apis
-          emulator-boot-timeout: 1800
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel off -no-snapshot
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel on -no-snapshot
           script: |
-            adb install build-android/kyna-smoke.apk
+            adb install "$(find android-artifacts -name kyna-smoke.apk -print -quit)"
             adb logcat -c
             adb shell monkey -p org.kyna.application 1
             python3 tests/native/verify_android_smoke.py
-      - uses: actions/upload-artifact@v6
-        with:
-          name: android-arm64
-          path: build-android/**/*.apk

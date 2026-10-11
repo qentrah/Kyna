@@ -156,7 +156,7 @@ Value Interpreter::eval(const ExprPtr &e) {
             return Value();
           }
           auto old = environment;
-          environment = std::make_shared<Environment>(environment);
+          environment = createEnvironment(environment);
           for (auto &s : p->statements)
             exec(s);
           Value r = p->tail ? eval(p->tail) : Value();
