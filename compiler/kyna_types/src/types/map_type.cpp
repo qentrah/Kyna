@@ -1,4 +1,5 @@
 // Implements typed map identity, rendering, assignability, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/map_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -11,18 +12,15 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<MapType *, Less> &pool() {
-  static std::set<MapType *, Less> values;
+TypePool<MapType, Less> &pool() {
+  static TypePool<MapType, Less> values;
   return values;
 }
 } // namespace
 
 const MapType *MapType::make(TypePtr key, TypePtr value) {
-  auto *created = new MapType(key, value);
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<MapType>(new MapType(key, value));
+  return pool().intern(std::move(created));
 }
 
 std::string MapType::str() const { return "map<" + key_->str() + ", " + value_->str() + ">"; }

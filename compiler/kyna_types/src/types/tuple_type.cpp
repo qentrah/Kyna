@@ -1,3 +1,4 @@
+#include "type_pool.hpp"
 // Implements internal tuple identity, rendering, assignability, and interning.
 #include <kyna/types/tuple_type.hpp>
 #include <kyna/types/basic_type.hpp>
@@ -11,18 +12,15 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<TupleType *, Less> &pool() {
-  static std::set<TupleType *, Less> values;
+TypePool<TupleType, Less> &pool() {
+  static TypePool<TupleType, Less> values;
   return values;
 }
 } // namespace
 
 const TupleType *TupleType::make(std::vector<TypePtr> elements) {
-  auto *created = new TupleType(std::move(elements));
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<TupleType>(new TupleType(std::move(elements)));
+  return pool().intern(std::move(created));
 }
 
 std::string TupleType::str() const {

@@ -1,3 +1,5 @@
+// Owns union and nullable type identity, compatibility, rendering, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/compound_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -12,8 +14,8 @@ struct UnionCompare {
     return lhs->str() < rhs->str();
   }
 };
-std::set<UnionType *, UnionCompare> &unionPool() {
-  static std::set<UnionType *, UnionCompare> pool;
+TypePool<UnionType, UnionCompare> &unionPool() {
+  static TypePool<UnionType, UnionCompare> pool;
   return pool;
 }
 
@@ -22,8 +24,8 @@ struct NullableCompare {
     return lhs->base()->str() < rhs->base()->str();
   }
 };
-std::set<NullableType *, NullableCompare> &nullablePool() {
-  static std::set<NullableType *, NullableCompare> pool;
+TypePool<NullableType, NullableCompare> &nullablePool() {
+  static TypePool<NullableType, NullableCompare> pool;
   return pool;
 }
 
@@ -32,11 +34,8 @@ std::set<NullableType *, NullableCompare> &nullablePool() {
 UnionType::UnionType(std::vector<TypePtr> members) : members_(std::move(members)) {}
 
 const UnionType *UnionType::make(std::vector<TypePtr> members) {
-  auto *created = new UnionType(std::move(members));
-  auto [it, inserted] = unionPool().insert(created);
-  if (!inserted)
-    delete created;
-  return *it;
+  auto created = std::unique_ptr<UnionType>(new UnionType(std::move(members)));
+  return unionPool().intern(std::move(created));
 }
 
 std::string UnionType::str() const {
@@ -76,11 +75,8 @@ bool UnionType::isIdenticalTo(const Type *other) const {
 NullableType::NullableType(TypePtr base) : base_(base) {}
 
 const NullableType *NullableType::make(TypePtr base) {
-  auto *created = new NullableType(base);
-  auto [it, inserted] = nullablePool().insert(created);
-  if (!inserted)
-    delete created;
-  return *it;
+  auto created = std::unique_ptr<NullableType>(new NullableType(base));
+  return nullablePool().intern(std::move(created));
 }
 
 std::string NullableType::str() const { return base_->str() + "?"; }

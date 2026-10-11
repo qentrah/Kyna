@@ -1,3 +1,4 @@
+#include "type_pool.hpp"
 // Implements pointer identity, rendering, assignability, and interning.
 #include <kyna/types/pointer_type.hpp>
 #include <kyna/types/basic_type.hpp>
@@ -11,18 +12,15 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<PointerType *, Less> &pool() {
-  static std::set<PointerType *, Less> values;
+TypePool<PointerType, Less> &pool() {
+  static TypePool<PointerType, Less> values;
   return values;
 }
 } // namespace
 
 const PointerType *PointerType::make(TypePtr base) {
-  auto *created = new PointerType(base);
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<PointerType>(new PointerType(base));
+  return pool().intern(std::move(created));
 }
 
 std::string PointerType::str() const { return "ptr<" + base_->str() + ">"; }

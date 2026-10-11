@@ -1,4 +1,5 @@
 // Implements nominal type identity, staged completion, and assignability.
+#include "type_pool.hpp"
 #include <kyna/types/named_type.hpp>
 #include <kyna/types/basic_type.hpp>
 #include <kyna/types/interface_type.hpp>
@@ -16,8 +17,8 @@ struct NamedCompare {
   }
 };
 
-std::set<NamedType *, NamedCompare> &namedPool() {
-  static std::set<NamedType *, NamedCompare> pool;
+TypePool<NamedType, NamedCompare> &namedPool() {
+  static TypePool<NamedType, NamedCompare> pool;
   return pool;
 }
 
@@ -28,26 +29,22 @@ NamedType::NamedType(std::string name, TypePtr underlying, std::vector<NamedMeth
 
 const NamedType *NamedType::make(std::string name, TypePtr underlying,
                                  std::vector<NamedMethod> methods) {
-  auto *created = new NamedType(std::move(name), underlying, std::move(methods));
-  auto [it, inserted] = namedPool().insert(created);
+  auto created = std::unique_ptr<NamedType>(new NamedType(std::move(name), underlying, std::move(methods)));
+  auto [existing, inserted] = namedPool().insert(created);
   if (!inserted) {
-    auto *existing = *it;
     if (existing->underlying_ && created->underlying_ &&
         !existing->underlying_->isIdenticalTo(created->underlying_)) {
-      delete created;
       throw std::invalid_argument("named type completed with a different underlying type");
     }
     if (!existing->methods_.empty() && !created->methods_.empty()) {
-      delete created;
       throw std::invalid_argument("named type completed with methods more than once");
     }
     if (!existing->underlying_)
       existing->underlying_ = created->underlying_;
     if (existing->methods_.empty())
       existing->methods_ = std::move(created->methods_);
-    delete created;
   }
-  return *it;
+  return existing;
 }
 
 bool NamedType::isAssignableTo(const Type *target) const {

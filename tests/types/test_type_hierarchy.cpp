@@ -1,3 +1,4 @@
+#include "../../compiler/kyna_types/src/types/type_pool.hpp"
 #include <kyna/types/type.hpp>
 #include <kyna/types/basic_type.hpp>
 #include <kyna/types/signature_type.hpp>
@@ -16,10 +17,40 @@
 #include <kyna/types/type_parameter.hpp>
 
 #include <cassert>
+#include <stdexcept>
 
 namespace {
 
 using namespace kyna::types;
+
+void test_intern_pool_owns_duplicates_and_shutdown() {
+  struct Probe {
+    int key;
+    int *destroyed;
+    ~Probe() { ++*destroyed; }
+  };
+  struct Less {
+    bool operator()(const Probe *left, const Probe *right) const {
+      if (left->key == -1 || right->key == -1) throw std::runtime_error("comparison failed");
+      return left->key < right->key;
+    }
+  };
+  int destroyed = 0;
+  {
+    TypePool<Probe, Less> pool;
+    const auto *first = pool.intern(std::unique_ptr<Probe>(new Probe{1, &destroyed}));
+    const auto *duplicate = pool.intern(std::unique_ptr<Probe>(new Probe{1, &destroyed}));
+    assert(first == duplicate && first->key == 1 && destroyed == 1);
+    try {
+      pool.intern(std::unique_ptr<Probe>(new Probe{-1, &destroyed}));
+      assert(false && "comparison must throw");
+    } catch (const std::runtime_error &) {}
+    assert(first->key == 1 && destroyed == 2);
+    pool.intern(std::unique_ptr<Probe>(new Probe{2, &destroyed}));
+  }
+  assert(destroyed == 4); // duplicate, exception candidate, and both retained types
+}
+
 
 void test_pointer_identity_and_immutability() {
   // The Universe returns stable singleton pointers: repeated access is identical
@@ -193,6 +224,7 @@ void test_composite_type_bridge() {
 } // namespace
 
 int main() {
+  test_intern_pool_owns_duplicates_and_shutdown();
   test_pointer_identity_and_immutability();
   test_basic_assignability();
   test_signature_type();

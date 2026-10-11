@@ -6,6 +6,7 @@ code backend. Each behavior below has executable regression coverage.
 | Area | Verification and result |
 | --- | --- |
 | Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, private dependency retention without namespace exposure, local/member alias resolution, nested object and generic-nullability compatibility, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm on-disk dependency changes and compiler/checker build fingerprint invalidation and forged dependency-sidecar rejection |
+| Type ownership | Immutable intern pools retain stable pointers and release their allocations at shutdown; duplicate and exception candidates are owned, with destructor-count regression coverage. Linux LeakSanitizer exposed the former raw-pointer pool leaks; the ownership fix is awaiting hosted leak verification. |
 | Integer boundaries | `test_numeric_parity.cpp`: checked overflow, signed minimum literal, division/remainder edge cases and unary underflow |
 | Numeric comparison | Exact int/int and mixed int/float equality and ordering, including adjacent integers above 2^53 and both 2^63 boundaries; shared comparison implementation avoids rounding integer operands |
 | Control flow | Duplicate/default ordering codes, constant compatible cases, adjacent large switch cases, nested labeled loops, switch break/continue targets and function boundaries |

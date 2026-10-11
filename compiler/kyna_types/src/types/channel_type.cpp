@@ -1,4 +1,5 @@
 // Implements directional channel identity, rendering, assignability, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/channel_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -11,18 +12,15 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<ChannelType *, Less> &pool() {
-  static std::set<ChannelType *, Less> values;
+TypePool<ChannelType, Less> &pool() {
+  static TypePool<ChannelType, Less> values;
   return values;
 }
 } // namespace
 
 const ChannelType *ChannelType::make(TypePtr element, ChannelDirection direction) {
-  auto *created = new ChannelType(element, direction);
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<ChannelType>(new ChannelType(element, direction));
+  return pool().intern(std::move(created));
 }
 
 std::string ChannelType::str() const {
