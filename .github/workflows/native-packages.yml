@@ -100,7 +100,18 @@ jobs:
           QT_QPA_PLATFORM: windows
           QT_QUICK_BACKEND: software
           QT_FORCE_STDERR_LOGGING: '1'
-        run: build-native/bin/Release/kyna_windows_process_probe.exe build-native/bin/Release/ky.exe --native-library build-native/native/Release/kyna_gui.dll run examples/native/apps/gui_smoke.ky
+        run: |
+          @'
+          from pathlib import Path
+          source = Path('examples/native/apps/gui_smoke.ky').read_text()
+          statements = []
+          for index, line in enumerate(source.splitlines()):
+              statements.append('console.error("GUI_PHASE '+str(index)+'");')
+              statements.append(line)
+          statements.append('console.error("GUI_PHASE completed");')
+          Path('build-native/gui-diagnostic.ky').write_text('\n'.join(statements))
+          '@ | python
+          build-native/bin/Release/kyna_windows_process_probe.exe build-native/bin/Release/ky.exe --native-library build-native/native/Release/kyna_gui.dll run build-native/gui-diagnostic.ky
       - run: ctest --test-dir build-native -C Release --output-on-failure
       - name: Relocate and test native application packages
         run: python3 build_tools/packaging/stage_delivery.py --build build-native --output portable-delivery --native
