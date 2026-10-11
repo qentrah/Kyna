@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix="kyna-native-packages-") as folder:
         inventory=gui.parent/'runtime-inventory.json';original=inventory.read_text()
         restored=json.dumps(original,ensure_ascii=False)
         path=json.dumps(inventory.as_posix(),ensure_ascii=False)
-        recovery=source('try { guiWindow("Unavailable",64,64); } catch (failure) { console.log("GUI_INIT_REJECTED"); } writeFile('+path+','+restored+'); var w=guiWindow("Recovered",64,64); fn stop(): void { guiQuit(); } guiAfter(1,stop); gc(); guiRun(); console.log("GUI_INIT_RECOVERED");')
+        recovery=source('try { guiWindow("Unavailable",64,64); } catch (failure) { console.log("GUI_INIT_REJECTED"); } try { writeFile('+path+','+restored+'); } catch (failure) { console.log(failure); } var w=guiWindow("Recovered",64,64); fn stop(): void { guiQuit(); } guiAfter(1,stop); collectGarbage(); guiRun(); console.log("GUI_INIT_RECOVERED");')
         run(['--native-library',gui,'check',recovery],cwd=project)
         try:
             inventory.write_text('{"schema":"invalid","binaries":[]}')
