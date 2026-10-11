@@ -7,6 +7,30 @@ sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_windows_os_filter_stops_recursion_but_keeps_msvc_runtimes(self):
+        with patch.dict(os.environ, {'SystemRoot': r'C:\Windows'}):
+            include, exclude = portable_runtime.windows_system_filters()
+        with tempfile.TemporaryDirectory() as temporary:
+            script=pathlib.Path(temporary)/'filters.cmake'
+            cases=[(r'C:\Windows\system32/user32.dll',False),
+                   ('c:/WINDOWS/System32/kernel32.dll',False),
+                   ('C:/Windows/System32/vcruntime140.dll',True),
+                   ('C:/Windows/System32/msvcp140.dll',True),
+                   ('C:/Windows/System32/concrt140.dll',True),
+                   ('C:/Windows/Temp/app/vendor.dll',True),
+                   ('C:/Windows/user32.dll',False),
+                   ('C:/Windows-extra/thirdparty.dll',True),
+                   ('D:/app/bin/libcrypto.dll',True)]
+            lines=['cmake_minimum_required(VERSION 3.25)']
+            for path, expected in cases:
+                lines += [f'set(path [==[{path}]==])', 'set(retained TRUE)',
+                          f'if(NOT path MATCHES [==[{include}]==] AND path MATCHES [==[{exclude}]==])',
+                          'set(retained FALSE)', 'endif()',
+                          f'if(NOT retained STREQUAL {"TRUE" if expected else "FALSE"})',
+                          'message(FATAL_ERROR "Incorrect Windows dependency filtering: ${path}")','endif()']
+            script.write_text('\n'.join(lines))
+            subprocess.run(['cmake','-P',str(script)],check=True,capture_output=True,text=True)
+
     def test_nested_release_artifacts_are_rejected_before_upload(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')

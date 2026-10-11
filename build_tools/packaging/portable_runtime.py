@@ -65,6 +65,18 @@ def stage_qt(root, location, qt):
         copy_regular_tree(qml / module, root / location / 'qml' / module, module == 'QtQml')
     return queries
 
+def windows_system_filters():
+    # Stop recursion at OS DLLs, preserving redistributable MSVC runtimes even
+    # when CMake resolves those from System32. Match mixed separators/casing
+    # emitted by Windows CMake versions without excluding sibling directories.
+    root = os.environ.get('SystemRoot', 'C:/Windows').replace('\\', '/').rstrip('/')
+    def pattern(path):
+        return ''.join(r'[/\\]' if c == '/' else '['+c.lower()+c.upper()+']' if c.isalpha() else re.escape(c) for c in path)
+    directories = '|'.join(pattern(name) for name in ('system32', 'syswow64', 'winsxs'))
+    exclude = '^' + pattern(root) + r'[/\\]([^/\\]+[.]dll$|(' + directories + r')[/\\])'
+    include = r'[/\\](vcruntime|msvcp|concrt)[^/\\]*[.]dll$'
+    return include, exclude
+
 def cmake_dependencies(seeds, searches):
     def quote(path): return '[==[' + str(path).replace('\\', '/') + ']==]'
     script = 'cmake_minimum_required(VERSION 3.25)\n'
@@ -82,6 +94,8 @@ def cmake_dependencies(seeds, searches):
         if sys.platform == 'win32':
             # API-set names are OS loader contracts, not redistributable DLL files.
             script += 'PRE_EXCLUDE_REGEXES "[Aa][Pp][Ii]-[Mm][Ss]-.*" "[Ee][Xx][Tt]-[Mm][Ss]-.*"\n'
+            include, exclude = windows_system_filters()
+            script += 'POST_INCLUDE_REGEXES [==[' + include + ']==]\nPOST_EXCLUDE_REGEXES [==[' + exclude + ']==]\n'
         executables = [p for p in seeds if p.suffix.lower() == '.exe' or p.name in ('ky', 'kyna')]
         libraries = [p for p in seeds if p not in executables]
         if executables: script += 'EXECUTABLES ' + ' '.join(map(quote, executables)) + '\n'
@@ -185,6 +199,8 @@ def stage(root, binary_paths, search_paths, qt=None, qt_location=pathlib.Path('q
     files = [*seeds, *copies.values()]
     inventory = {'schema':'kyna.portable-runtime/v1', 'platform':sys.platform, 'qt_version':queries.get('QT_VERSION'),
         'system_dependencies':sorted(system), 'binaries':[{'path':p.relative_to(root).as_posix(), 'sha256':digest(p), 'source':str(origins.get(p, p))} for p in sorted(set(files))]}
+    if sys.platform == 'win32':
+        inventory['system_dependency_policy'] = 'OS DLLs in Windows/System32, SysWOW64, WinSxS and the Windows root are excluded; MSVC redistributables remain audited and bundled.'
     (root / 'runtime-inventory.json').write_text(json.dumps(inventory, indent=2) + '\n')
     return inventory
 
