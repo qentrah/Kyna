@@ -177,10 +177,20 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
     assert app.returncode==0 and "[9]" in app.stdout,(app.stdout,app.stderr)
     wrapper=next((project/".kyna/native").glob("*/ml.ky"));wrapper.write_text("tampered")
     run(["run","main.ky"],False,cwd=project)
+    # Listing validation must reject raw path spellings before Windows path
+    # normalization. The preceding real installs also cover Windows tar CRLF.
+    import re
+    for unsafe in ('../escape','C:/escape','folder\\..\\escape','control\rname'):
+        with tarfile.open(archive,'w:gz') as tar:
+            info=tarfile.TarInfo(unsafe);tar.addfile(info)
+        text=re.sub(r'sha256 = "[a-f0-9]+"','sha256 = "'+hashlib.sha256(archive.read_bytes()).hexdigest()+'"',(project/'kyna.toml').read_text())
+        (project/'kyna.toml').write_text(text)
+        rejected=run(['install'],False,cwd=project)
+        assert 'unsafe native archive path' in rejected.stderr,rejected.stderr
     # A verified archive is still rejected if it contains a link.
     with tarfile.open(archive,"w:gz") as tar:
         info=tarfile.TarInfo("unsafe");info.type=tarfile.SYMTYPE;info.linkname="/tmp";tar.addfile(info)
-    text=(project/"kyna.toml").read_text().replace(sha,hashlib.sha256(archive.read_bytes()).hexdigest());(project/"kyna.toml").write_text(text)
+    text=re.sub(r'sha256 = "[a-f0-9]+"','sha256 = "'+hashlib.sha256(archive.read_bytes()).hexdigest()+'"',(project/'kyna.toml').read_text());(project/"kyna.toml").write_text(text)
     run(["install"],False,cwd=project)
     # Reject expanded size before writing an oversized member to staging.
     class Zeroes:

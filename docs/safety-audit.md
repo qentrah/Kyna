@@ -107,3 +107,13 @@ run at `da6d905` must pass before all desktop application targets are claimed.
 Core CI at `f716aba` passes Linux, macOS and Windows, including the full Linux
 Debug/ASan/UBSan suite with leak detection
 ([run](https://github.com/qentrah/Kyna/actions/runs/38114505914)).
+
+The expanded Windows archive fixture exposed CRLF records from captured tar
+output. Archive inspection now removes the Windows record terminator before
+validating names, while rejecting embedded controls and original backslash/drive
+spellings before filesystem normalization. Native installer tests additionally
+reject traversal, drive paths, backslashes and carriage-return member names.
+This does not relax extraction's post-validation, link rejection or size bounds.
+The hosted APK at `6530819` passes another Android 14 ARM64 lifecycle recording
+with startup and post-cleanup completion markers; production signing and the
+physical CI runner remain external gates.

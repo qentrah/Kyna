@@ -16,7 +16,17 @@ std::map<fs::path,std::string> unpackNativeArchive(const std::string &data){
  auto archive=folder.path/"artifact.tar";std::string error;if(!projectWrite(archive,data,error))reject(error);
  auto host=productionRuntimeCapabilities();ProcessConfig config;config.program="tar";config.captureOutput=true;config.args={"-tf",archive.string()};auto listing=host.processes->spawn(config);
  if(listing.failedToStart||listing.exitCode||listing.stdoutText.size()>8*1024*1024)reject("cannot inspect native tar archive; install tar or obtain a binary artifact");
- std::istringstream names(listing.stdoutText);std::string line;size_t count=0;while(std::getline(names,line)){if(++count>10000||!safe(fs::path(line)))reject("unsafe native archive path");}
+ std::istringstream names(listing.stdoutText);std::string line;size_t count=0;
+ while(std::getline(names,line)){
+#ifdef _WIN32
+  // Windows tar emits CRLF through captured pipes; CR is the record terminator,
+  // not part of the member name. Embedded controls remain forbidden below.
+  if(!line.empty()&&line.back()=='\r')line.pop_back();
+#endif
+  // Check the original spelling before Windows filesystem paths normalize
+  // backslashes. Archives use portable forward-slash member names only.
+  if(++count>10000||line.find_first_of("\\:\r\n")!=std::string::npos||!safe(fs::path(line)))reject("unsafe native archive path");
+ }
  config.args={"-tvf",archive.string()};listing=host.processes->spawn(config);if(listing.failedToStart||listing.exitCode)reject("cannot inspect native archive types");
  std::istringstream types(listing.stdoutText);size_t expanded=0;
  while(std::getline(types,line)){
