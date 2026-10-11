@@ -33,7 +33,9 @@ jobs:
         with:
           path: .vcpkg-binary-cache
           key: core-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+            native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json

@@ -82,11 +82,13 @@ jobs:
         id: native-cache
         with:
           path: .vcpkg-binary-cache
-          key: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          key: native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
       - name: Configure optional packages
+        id: native-configure
         shell: bash
         run: cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DKYNA_WITH_GUI=ON -DKYNA_WITH_GEOMETRY=ON -DKYNA_WITH_ML=ON '-DVCPKG_MANIFEST_FEATURES=geometry;ml' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
       - run: cmake --build build-native --config Release --parallel 3
@@ -156,7 +158,7 @@ jobs:
           name: native-${{ matrix.target }}
           path: release-assets/**
       - name: Preserve built dependency cache after packaging failures
-        if: always() && steps.native-cache.outputs.cache-hit != 'true'
+        if: always() && steps.native-configure.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .vcpkg-binary-cache

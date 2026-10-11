@@ -6,8 +6,8 @@ ky, root, gui, geometry, ml = (p.resolve() for p in (ky, root, gui, geometry, ml
 env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", QT_FORCE_STDERR_LOGGING="1")
 if os.name == "nt":
     # Windows runners provide a desktop session. Exercise the production QPA
-    # plugin and native font database; the offscreen FreeType plugin crashes
-    # on these runners even with an explicit system-font directory.
+    # plugin and native font database. GUI code must also remain resident for
+    # Qt's process-global meta-types after session cleanup.
     env["QT_QPA_PLATFORM"] = "windows"
 def run(args, success=True, cwd=root):
     r = subprocess.run([str(ky), *map(str,args)], cwd=cwd, env=env, capture_output=True, text=True, timeout=30)

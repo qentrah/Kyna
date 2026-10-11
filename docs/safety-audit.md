@@ -85,3 +85,10 @@ a Qt6Qml shutdown fault reads unmapped memory. GUI use retains its Windows adapt
 image for Qt's global meta-type registrations; metadata-only loading remains
 unloadable. Session objects and callback roots still close normally, and the
 Qt host regression runs two consecutive sessions. Windows verification is pending.
+
+The latest hosted `9b92bbc` Android APK also passes the real emulator lifecycle
+recording. The Windows metadata regression checks that descriptor-only loading
+unmaps its installer staging DLL. Native dependency caches use a separate
+geometry/ML feature key and are saved only after successful configuration;
+the former branch cache contained only core ports, repeating a 54-minute cold
+native install because an immutable cache hit prevented complete cache saves.

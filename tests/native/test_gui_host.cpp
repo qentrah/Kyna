@@ -4,8 +4,15 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 #include <thread>
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace {
 void exercise(const char *library, const std::string &code) {
@@ -32,6 +39,10 @@ int main(int argc,char **argv) {
     assert(session.checkSource("gui-check.ky","fn later(): void { guiQuit(); } var id=guiAfter(1,later);").ok());
     assert(QCoreApplication::instance()==nullptr);
   }
+#if defined(_WIN32)
+  // Descriptor validation must not lock an installer staging DLL in memory.
+  assert(GetModuleHandleW(std::filesystem::absolute(argv[1]).c_str())==nullptr);
+#endif
   if(mode=="core") { QCoreApplication app(argc,argv);exercise(argv[1],"KNATIVE1005"); }
   else {
     QGuiApplication app(argc,argv);
