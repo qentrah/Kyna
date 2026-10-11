@@ -100,6 +100,15 @@ void test_signature_type() {
   assert(sig != sig2);
   assert(!sig->isIdenticalTo(sig2));
 
+  auto intReceiver = SignatureType::make({Universe::Int()}, Universe::Bool(), Universe::Int());
+  auto strReceiver = SignatureType::make({Universe::Int()}, Universe::Bool(), Universe::String());
+  auto noReceiver = SignatureType::make({Universe::Int()}, Universe::Bool());
+  assert(intReceiver != strReceiver && intReceiver != noReceiver);
+  assert(!intReceiver->isIdenticalTo(strReceiver));
+  assert(intReceiver->receiverType() == Universe::Int());
+  assert(strReceiver->receiverType() == Universe::String());
+  assert(intReceiver == SignatureType::make({Universe::Int()}, Universe::Bool(), Universe::Int()));
+
   // A function value is assignable to the untyped "func" and "any" classifiers.
   assert(sig->isAssignableTo(Universe::Func()));
   assert(sig->isAssignableTo(Universe::Any()));

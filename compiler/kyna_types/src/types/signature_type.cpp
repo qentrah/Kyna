@@ -3,6 +3,7 @@
 #include <kyna/types/signature_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
+#include <functional>
 #include <set>
 #include <string>
 
@@ -15,7 +16,10 @@ namespace {
 
 struct SignatureCompare {
   bool operator()(const SignatureType *lhs, const SignatureType *rhs) const {
-    return key(*lhs) < key(*rhs);
+    const auto left = key(*lhs), right = key(*rhs);
+    if (left != right) return left < right;
+    // Receiver identity participates in isIdenticalTo, even though str() omits it.
+    return std::less<TypePtr>{}(lhs->receiverType(), rhs->receiverType());
   }
   static std::string key(const SignatureType &s) {
     std::string k = s.str();
