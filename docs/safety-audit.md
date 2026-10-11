@@ -76,7 +76,7 @@ crash cannot erase its checkpoint through buffered program output.
 
 The publisher rehashes every release asset before any GitHub request, rejects
 malformed/duplicate/escaping entries and requires exact manifest coverage.
-All 27 release-packaging tests pass, including six checksum rejection subcases.
+All 28 release-packaging tests pass, including six checksum rejection subcases.
 Windows core CI at `835ca2d` passes all 57 CTests and portable CLI/installer
 verification ([run](https://github.com/qentrah/Kyna/actions/runs/38111562875)).
 
@@ -84,7 +84,11 @@ The bounded Windows probe now confirms completion of all Kyna statements before
 a Qt6Qml shutdown fault reads unmapped memory. GUI use retains its Windows adapter
 image for Qt's global meta-type registrations; metadata-only loading remains
 unloadable. Session objects and callback roots still close normally, and the
-Qt host regression runs two consecutive sessions. Windows verification is pending.
+Qt host regression runs two consecutive sessions. Hosted Windows verification at
+`457054c` passes the complete GUI program, both host sessions and wrong-thread
+checks ([run](https://github.com/qentrah/Kyna/actions/runs/38113966480)).
+That run then exposed a separate ML installation fixture that supplied a raw DLL
+without its BLAS closure; it did not indicate a remaining GUI crash.
 
 The latest hosted `9b92bbc` Android APK also passes the real emulator lifecycle
 recording. The Windows metadata regression checks that descriptor-only loading
@@ -92,3 +96,14 @@ unmaps its installer staging DLL. Native dependency caches use a separate
 geometry/ML feature key and are saved only after successful configuration;
 the former branch cache contained only core ports, repeating a 54-minute cold
 native install because an immutable cache hit prevented complete cache saves.
+
+The ML installer regression now supplies a complete relocated runtime archive on
+every OS, including raw-build CTest runs. A self-contained authored binding
+separately covers legacy single-file installation. Both paths pass locally.
+Release relocation removes Qt/QML loader environment variables and, on Windows,
+the original Qt, vcpkg and build runtime directories from PATH while retaining
+compiler tools. A release regression verifies this isolation. The final platform
+run at `da6d905` must pass before all desktop application targets are claimed.
+Core CI at `f716aba` passes Linux, macOS and Windows, including the full Linux
+Debug/ASan/UBSan suite with leak detection
+([run](https://github.com/qentrah/Kyna/actions/runs/38114505914)).

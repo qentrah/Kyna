@@ -84,8 +84,8 @@ with a separate execution before timing the checker.
 
 The switch and typed-callback pairs compare identical output against C++.
 The type-contract workload exercises aliases, type-only imports, and checked
-function contracts across source modules. Native library workloads await their
-actual package implementations.
+function contracts across source modules. The optional native workloads below exercise the implemented GUI and geometry
+packages; the regression oracle checks ML conversion and dispatch.
 
 ## Optional native workloads
 

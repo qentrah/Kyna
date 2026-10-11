@@ -151,6 +151,64 @@ jobs:
     uses: ./.github/workflows/native-packages.yml
     secrets: inherit
 
+  candidate:
+    name: Assemble verified release candidate without publication
+    if: github.event_name == 'workflow_dispatch'
+    needs: [cli, extension, native]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, package-manager-cache: false }
+      - uses: actions/download-artifact@v8
+        with: { path: artifacts, merge-multiple: true }
+      - name: Test and pack the npm adapter for owner publication
+        working-directory: tools/npm-installer
+        run: |
+          npm test
+          npm pack --ignore-scripts
+      - name: Assemble complete matching assets and verify every checksum
+        env:
+          CANDIDATE_COMMIT: ${{ github.sha }}
+          CANDIDATE_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cp install.sh install.ps1 docs/releases/v1.0.16.md artifacts/
+          cp tools/npm-installer/*.tgz artifacts/
+          python3 - <<'PYCODE'
+          import json,os,pathlib,re,sys
+          sys.path.insert(0,'build_tools/packaging')
+          from portable_runtime import digest
+          from publish_release import verify_assets
+          root=pathlib.Path('artifacts')
+          version=re.search(r'project\(kyna VERSION ([0-9.]+)',pathlib.Path('CMakeLists.txt').read_text())[1]
+          npm=json.loads(pathlib.Path('tools/npm-installer/package.json').read_text())
+          if npm['version']!=version:raise SystemExit('npm/release version mismatch')
+          required={'install.sh','install.ps1','kyna-android-arm64-smoke.apk','kyna-android-qt-sources-6.7.3.tar.gz',
+                    f'kyna-language-support-{version}.vsix',f'kyna-language-cli-{version}.tgz'}
+          for target in ('linux-x86_64','linux-arm64','darwin-x86_64','darwin-arm64','windows-x86_64'):
+              required.add(f'kyna-{target}.'+('zip' if target.startswith('windows') else 'tar.gz'))
+              required.add(f'kyna-qt-sources-{target}.tar.gz')
+              required.update(f'kyna-{package}-{version}-{target}.tar.gz' for package in ('gui','geometry','ml'))
+          missing=required-{path.name for path in root.iterdir()}
+          if missing:raise SystemExit('Missing release assets: '+', '.join(sorted(missing)))
+          (root/'RELEASE-CANDIDATE.json').write_text(json.dumps({'schema':'kyna.release-candidate/v1','version':version,
+              'source_commit':os.environ['CANDIDATE_COMMIT'],'verification_run':os.environ['CANDIDATE_RUN'],
+              'published':False,'production_signed':False,'android_key':'ephemeral smoke test',
+              'npm_publication':'owner only'},indent=2)+'\n')
+          files=sorted(path for path in root.iterdir() if path.name!='SHA256SUMS')
+          if any(not path.is_file() or path.is_symlink() for path in files):raise SystemExit('Release assets must be flat regular files')
+          (root/'SHA256SUMS').write_text(''.join(digest(path)+'  '+path.name+'\n' for path in files))
+          verify_assets(root,sorted(root.iterdir()))
+          PYCODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: verified-release-candidate
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/')

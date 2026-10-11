@@ -56,4 +56,6 @@ using [GetModuleHandleExW PIN](https://learn.microsoft.com/en-us/windows/win32/a
 Sessions still release objects, resource handles and callback roots. Metadata-only
 install/check sessions do not pin the module or start Qt. Replace a GUI DLL only
 after its running application exits. Repeated embedded sessions have regression
-coverage; hosted Windows verification of the image-residency fix is pending.
+coverage. Hosted Windows GUI execution, shutdown and both embedded sessions
+pass at `457054c`; complete installation and relocated packaging remain gated
+on the final matrix.
