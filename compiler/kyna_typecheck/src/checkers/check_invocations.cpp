@@ -176,9 +176,11 @@ TypeRef Analyzer::checkMember(const Member &n, SourceLocation loc) {
       error("private member '" + n.name + "' is not accessible here", loc);
     if (access == 1 && (!owner || (!subclassAccess && currentClass != owner->name)))
       error("protected member '" + n.name + "' is not accessible here", loc);
-    return field ? resolveType(field->type, loc)
-                 : analyzerSignature(*method, method->hasReturnType ? resolveType(method->returnType, loc)
+    if (field) return resolveType(field->type, loc);
+    auto signature = analyzerSignature(*method, method->hasReturnType ? method->returnType
                                                                     : analyzerNamedType("any"));
+    for (auto &type : signature.typeArgs) type = resolveType(type, loc);
+    return signature;
   }
   if (const auto *contract = interfaces.find(className)) {
     std::vector<std::string> stack;
@@ -188,14 +190,14 @@ TypeRef Analyzer::checkMember(const Member &n, SourceLocation loc) {
         std::find_if(effective.fields.begin(), effective.fields.end(),
                      [&](const auto &candidate) { return candidate.name == n.name; });
     if (field != effective.fields.end())
-      return substitute(field->type, *contract, contractRef);
+      return resolveType(substitute(field->type, *contract, contractRef), loc);
     const auto method =
         std::find_if(effective.methods.begin(), effective.methods.end(),
                      [&](const auto &candidate) { return candidate.name == n.name; });
     if (method != effective.methods.end()) {
       auto signature = analyzerSignature(*method, method->returnType);
       for (auto &type : signature.typeArgs)
-        type = substitute(type, *contract, contractRef);
+        type = resolveType(substitute(type, *contract, contractRef), loc);
       return signature;
     }
   }

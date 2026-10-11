@@ -53,6 +53,11 @@ def main():
         ('var wrong = "a" < "b";', 'KSEM1602'),
         ('var wrong = 1.5 % 2;', 'KSEM1603'),
         ('console.missing("hello");', 'KSEM2404'),
+        ('type Count = int; intf Box {value:Count;} var box:Box = {value:1}; var bad:str = box.value;', 'KSEM1505'),
+        ('intf Mapper { fn apply(value:int):int; } class Counter implements Mapper { public fn apply(value:str):int { return 1; } }', 'KSEM1506'),
+
+        ('type Count = int; intf Mapper { fn apply(value: Count): Count; } fn consume(map:Mapper):int { return map.apply("bad"); }', 'KSEM1202'),
+
     ]
     for source, code in cases: check(source, code)
     for source in [
@@ -63,6 +68,12 @@ def main():
         'type Count = int; fn f(x: Count) { return x + 1; } var g = f; var result: Count = g(1);',
         'fn f(x: int): int { return x; } var g: fn(int): int = f; var result: int = g(1);',
         'var result: float = 1 / 2;',
+        'type Count = int; intf Box {value:Count;} var box:Box = {value:1}; var count:int = box.value;',
+        'type Count = int; intf Mapper { fn apply(value: Count): Count; } fn consume(map:Mapper):int { return map.apply(1); }',
+        'type Count = int; intf Mapper { fn apply(value:int):int; } class Counter implements Mapper { public fn apply(value:Count):Count { return value; } } var c = new Counter(); var n:int = c.apply(1);',
+
+        'intf Box<T> {value:T;} var box:Box<int?> = {value:null}; var count:int? = box.value;',
+
         'switch (1.0) { case 1.000001: {} case 1.000002: {} }',
     ]: check(source)
 

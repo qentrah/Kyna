@@ -5,7 +5,7 @@ code backend. Each behavior below has executable regression coverage.
 
 | Area | Verification and result |
 | --- | --- |
-| Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm on-disk dependency changes and compiler/checker build fingerprint invalidation and forged dependency-sidecar rejection |
+| Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, private dependency retention without namespace exposure, local/member alias resolution, nested object and generic-nullability compatibility, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm on-disk dependency changes and compiler/checker build fingerprint invalidation and forged dependency-sidecar rejection |
 | Integer boundaries | `test_numeric_parity.cpp`: checked overflow, signed minimum literal, division/remainder edge cases and unary underflow |
 | Numeric comparison | Exact int/int and mixed int/float equality and ordering, including adjacent integers above 2^53 and both 2^63 boundaries; shared comparison implementation avoids rounding integer operands |
 | Control flow | Duplicate/default ordering codes, constant compatible cases, adjacent large switch cases, nested labeled loops, switch break/continue targets and function boundaries |
@@ -17,7 +17,7 @@ code backend. Each behavior below has executable regression coverage.
 New stable codes include `KSYN1301`, `KSYN1302`, `KSEM1308`, `KSEM1309`,
 `KSEM1507`, and `KSEM1604`. See [diagnostics](diagnostics.md).
 
-The current local Release suite passes all 57 CTests. The relocated native package
+The current local Debug and Release suites each pass all 57 CTests. The relocated native package
 fixture passes GUI callbacks, geometry, regression, checked imports, installation
 and `ky build`. The current source also passes all 57 sanitizer tests and all 59 optional-package
 tests. LeakSanitizer is unavailable in the current macOS setup.

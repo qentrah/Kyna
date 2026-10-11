@@ -85,28 +85,34 @@ bool Analyzer::classConforms(const ClassDecl &klass, const InterfaceDecl &contra
     if (effective.optionalFields.contains(required.name))
       continue;
     const auto *field = findField(klass, required.name);
-    if (!field || !compatible(substitute(required.type, contract, contractRef), field->type)) {
+    if (!field || !compatible(resolveType(substitute(required.type, contract, contractRef)), resolveType(field->type))) {
       conforms = false;
       if (location.known())
         error("class '" + klass.name + "' does not provide compatible field '" + required.name +
                   "' required by interface '" + contract.name + "'",
-              location);
+              location, "KSEM1506", "match the interface's required public field type");
     }
   }
   for (const auto &required : effective.methods) {
     const auto *method = findMethod(klass, required.name);
     FunctionDecl substitutedRow = required;
     for (auto &param : substitutedRow.params)
-      param.type = substitute(param.type, contract, contractRef);
-    substitutedRow.returnType = substitute(required.returnType, contract, contractRef);
-    if (!method || !sameParameters(*method, substitutedRow) ||
-        !compatible(substitutedRow.returnType, method->returnType) ||
+      param.type = resolveType(substitute(param.type, contract, contractRef));
+    substitutedRow.returnType = resolveType(substitute(required.returnType, contract, contractRef));
+    FunctionDecl actual;
+    if (method) {
+      actual = *method;
+      for (auto &param : actual.params) param.type = resolveType(param.type);
+      actual.returnType = resolveType(actual.returnType);
+    }
+    if (!method || !sameParameters(actual, substitutedRow) ||
+        !compatible(substitutedRow.returnType, actual.returnType) ||
         visibility(method->modifiers) != 2) {
       conforms = false;
       if (location.known())
         error("class '" + klass.name + "' does not provide compatible public method '" +
                   required.name + "' required by interface '" + contract.name + "'",
-              location);
+              location, "KSEM1506", "match the interface's required public method signature");
     }
   }
   return conforms;

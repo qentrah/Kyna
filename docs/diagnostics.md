@@ -40,6 +40,7 @@ Additional checked-contract codes:
 | KSEM1507 | incompatible function return type |
 | KSEM1604 | numeric literal outside its representable range |
 | KSEM1505 | incompatible binding or assignment |
+| KSEM1506 | incompatible structural interface field or public method |
 | KSEM1601–KSEM1603 | incompatible logical, ordered comparison, or remainder operand |
 | KCLI1001 | invalid CLI usage (exit 2) |
 | KNATIVE1001 | native module loading/registration failed (exit 2) |
