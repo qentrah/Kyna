@@ -1,213 +1,82 @@
 # Safety and native-library upgrade status
 
-Checkpoint: 2026-10-11. This inventory distinguishes implemented work from the
-remaining approved plan. It is not a release-completion claim.
+Checkpoint: 2026-10-11, PR [#6](https://github.com/qentrah/Kyna/pull/6).
+Version 1.0.16 is prepared; no release tag or npm publication has been created.
 
-## Implemented
+## Implementation
 
-- Research comparison and owner/test seams for Go, TypeScript, and Rust FFI.
-- Debug, Release, and Address/Undefined Behavior sanitizer baselines: all 46
-  existing tests passed before compiler changes. The original Debug primes
-  benchmark exceeded the existing Kyna/C++ ratio threshold (251 versus 50).
-- Aliases, ordinary-file exported interfaces, named/aliased/namespace type
-  imports, type-only import/export erasure, imported checked signatures and
-  inferred bindings, generic interface contracts, recursive inference errors,
-  type-as-value errors, and source/dependency/version-aware checked export cache.
-- Constant/compatible/duplicate switch checks and function-local control-flow
-  targets; no fallthrough remains the existing execution policy.
-- Tree-walk checked integer operations and exact integer comparisons; numeric
-  parity and closure-based evaluation-order/short-circuit tests through HIR,
-  MIR, bytecode, and tree-walk execution.
-- Grouped CLI help, schema-preserving usage errors, specific native errors,
-  stdout-aware console color policy, and explicit color/environment tests.
-- Modular extension diagnostics/executable discovery/completion catalogs;
-  imported-file Problems entries, related locations, Unicode ranges, stale
-  process cancellation, dependency rechecks, failure handling, and type syntax.
-  VSIX 1.0.16 packages successfully. Focused project discovery, route metadata,
-  views, commands, document execution, and language feature modules now replace
-  the large activation file. Unsaved dependency overlays now
-  pass source text through TOML overlays rather than reading stale disk text.
-- Typed host native functions shared by checker, inspection, VM, and tree-walk;
-  runtime argument/result checks including calls through `any`, rooted arguments,
-  synchronous host callback services, and C++ exception translation.
-- Versioned C ABI shared-library loading for scalar/array contracts, module
-  ownership, integer-to-float conversion, result cleanup, ABI rejection, and
-  `--native-library`. A C++ host invokes Kyna and Kyna imports a source wrapper
-  around a C++ export in tests.
-- Additional type, cache, numeric, native ABI/conversion/cleanup, extension, and
-  CLI tests; switch/callback/type-module benchmarks; baseline-relative comparison
-  with dependency/C++ source and result fingerprints.
+The existing C++ compiler, HIR/MIR/bytecode pipeline and VM remain in place.
+Checked module contracts preserve aliases, exported interfaces, generics, inferred
+bindings and type-only declarations. On-disk export caches include source and
+transitive dependency contracts plus the compiler/checker build fingerprint.
+Explicit `any` remains an escape hatch; native calls still validate conversions.
 
-## Remaining gates
+Integer arithmetic, signed boundaries, exact mixed numeric comparisons, switch
+case compatibility/duplicates/default ordering, function boundaries, evaluation
+order and short-circuit behavior have regression coverage. Diagnostics preserve
+`kyna.diagnostic/v1` and carry stable codes and source locations.
 
-1. Complete nullability/callback/recursive inference and mathematical audit
-   beyond the added focused regressions; broaden cross-engine control-flow tests.
-2. Extension module extraction and relative named/namespace type hover/navigation
-   are implemented, with alias, re-export, visibility, cycle, and unsaved-source
-   navigation tests. Bare-package navigation and broader CLI/extension agreement
-   coverage remain open.
-3. Retained roots, callback ownership, opaque leases, and C ABI 2 are implemented.
-   Callback GC, runtime/thread affinity, foreign/stale resources, and shutdown
-   are tested through VM and tree-walk.
-4. Native contract/checksum installation and `ky build` are implemented and smoke
-   tested locally. Verified tar acquisition and per-file rechecking are implemented. Dependency relocation/deployment and
-   Git and native lock writes roll back together on reported installation failure;
-   crash recovery and concurrent installers remain unsupported.
-5. Qt Quick GUI, CGAL 2D/mesh inspection, and mlpack regression adapters execute
-   real applications. Desktop optional-library CTests passed on hosted macOS and
-   Linux, with local macOS ARM64 offscreen smoke. Android
-   shell passed an actual Android 14 ARM64 emulator installation, launch, timer,
-   background/foreground lifecycle, GC, and shutdown smoke. Physical devices and
-   other Android versions remain unverified.
-6. Direct C++ regression parity and repeated conversion/dispatch measurements
-   are recorded. Dependency/license inventory and desktop/Android CI are added;
-   fixed geometry/GUI workloads verify equivalent C++ results and record repeated
-   timing/RSS. Windows optional-library CI and the dedicated physical ARM64
-   application CI gate remain unverified.
-7. Produce native application release archives/checksums and verify Bash,
-   PowerShell, VSIX, and npm together against a chosen release tag. npm publication
-   remains with the owner's account.
+The extension is split into execution, diagnostics, commands, views and language
+features. Unsaved overlays, stale processes, imported-file diagnostics, Unicode
+ranges, type imports/exports, re-exports and native/path package navigation are
+covered. Console output and color tests cover redirected output and terminal use.
 
-Rams quick_review was requested with `via: rules`; the service reports all 15
-workspace review credits exhausted, so the required design review did not run.
-Local extension tests and the repository extension verifier do not replace it.
+C ABI 2 provides typed exports, runtime conversion checks, rooted retained
+callbacks, resource leases, thread affinity, stale-handle rejection, shutdown and
+exception translation. Native installation verifies archive checksums and every
+installed file. Reported installation failures restore source/native locks.
+`ky build` compiles authored C++ bindings and packages runnable applications.
 
-## Performance interpretation
+Qt Quick GUI, CGAL points/hulls/mesh inspection and mlpack linear regression are
+real optional libraries. Relocated payloads include shared dependencies, Qt QML
+imports/plugins/framework resources and license notices. Bash, PowerShell and npm
+retain these payloads; npm consumes the same release archives and SHA256SUMS.
 
-Benchmarks measure process wall time, phase timings, per-process RSS where
-available, output hashes, compiler/binary size, and C++ compilation time. Debug primes measurements remain above the informational threshold. The
-separate Release checkpoint passes all output comparisons and ratio checks;
-comparing Debug with Release is not evidence of a change-related improvement.
-Results collected while
-other builds are active are not evidence of a baseline-relative regression or
-improvement. Use matching configurations on an idle machine and repeated runs.
+## Verification and evidence
 
-## Verified builds and artifacts
+- Fresh local Release: all 57 CTests passed, including release-gate rejection tests.
+- Fresh optional-library configuration: all 59 CTests passed.
+- Fresh Address/Undefined Behavior sanitizer configuration: all 57 CTests passed
+  after the final compiler/cache changes. LeakSanitizer is unavailable on this macOS host.
+- Thirteen focused extension tests, six npm installer tests, architecture and
+  extension verification pass. VSIX 1.0.16 packages successfully.
+- Real relocated applications exercise GUI callbacks/GC, geometry, regression,
+  checked imports, verified installation and packaged `ky build` launchers.
+- [App recordings](videos/README.md) show desktop GUI + geometry + regression and
+  Android ARM64 lifecycle/callback/shutdown smoke on an Android 14 emulator.
+- [Safety audit](safety-audit.md), [portable packaging](portable-packaging.md),
+  [dependency inventory](native-dependencies.md) and
+  [native workload measurements](performance/native-workloads-checkpoint.json)
+  describe correctness, packaging and measurement scope.
 
-- All 56 CTests passed in Debug, Release, and sanitizer configurations after
-  archive installation and process-launch changes.
-- Architecture, extension, language-example, installer, and npm adapter checks
-  pass. The extension diagnostic tests pass, and VSIX 1.0.16 was produced locally.
-- [Original Debug benchmark](performance/safety-debug-baseline.json) preserves
-  the original report schema fields; it predates the new input fingerprint and
-  mode fields and cannot be fed directly into the stricter baseline comparator.
-- [Release checkpoint](performance/safety-release-checkpoint.json) records five
-  measured repetitions after two warmups and verifies C++ output parity. It is
-  an informational checkpoint for subsequent matching Release runs.
-- [Checking checkpoint](performance/safety-release-checking.json) times the
-  checker after separately validating executable output against C++ companions;
-  C++ execution timings are not compared to Kyna checking timings.
+Core Linux/macOS portable CI passed at `82c9e93`. Earlier optional Linux/macOS
+CTest and Android cross-compilation passed. Windows exposed sibling DLL search,
+now corrected with `LoadLibraryExW`; final five-target CLI/native release
+preparation is running at `7b44cd2`. Historical passes do not establish that
+all final-head targets are supported.
 
-## Native implementation checkpoint
+## Remaining release gates
 
-Real optional adapters live in `library/gui`, `library/geometry`, and `library/ml`.
-See [Libraries](libraries.md), [Android](android.md), and
-[dependency inventory](native-dependencies.md). The direct regression oracle
-checks `1e-12` output parity and reports repeated prediction conversion overhead
-in [the checkpoint](performance/native-regression-checkpoint.json).
+1. Finish final platform CI and fix any failures. Native packages must pass actual
+   application/install/build smoke before their desktop target is supported.
+2. Production signing requires repository credentials and the enabled stable
+   release gate. CLI and native libraries share signature verification and
+   notarization checks; missing credentials block publication.
+3. Android cross-compilation is separate from application smoke. Local physical-
+   host emulator smoke passed; a dedicated physical CI runner is not provisioned.
+   Physical Android devices and other Android versions remain unverified.
+4. Complete license clearance for the exact CI dependency closure and any required
+   corresponding-source/relinking materials. Local upstream source archives have
+   verified SHA-256 and extracted notices, but inventories alone are not clearance.
+5. Rams `quick_review` with `via: rules` could not run because workspace review
+   credits are exhausted. Direct app and extension tests do not replace it.
 
-Optional application/install/build tests passed against Release and sanitizer
-CLIs, including archive source wrappers, file tampering, and link rejection.
-Extension overlay temporary-file tests pass. Reproducible local native archives
-with SHA256SUMS are generated by `tools/native-packager/package.py`; runtime
-dependencies remain external until deployment/relocation is verified. Android
-provisioning initially encountered `No space left on device`; authorized cleanup
-removed roughly 17.2 GiB of generated caches, node_modules, virtual environments,
-and framework build output, preserving project source and lockfiles. Qt Android
-and host 6.7.3, SDK platform/build tools 35, and NDK 26.1 are installed. Android
-Release APK build and Android 14 ARM64 emulator application smoke passed. Unused
-Qt toolchain debug symbols were also removed to keep enough build space.
-Android validation covers that emulator configuration; no completed portable native release claim is made.
+Concurrent installation and crash recovery across two lockfiles remain unsupported.
+Debug benchmark ratios exceeded the existing informational threshold; matching
+Release checkpoints verify results and timing comparisons. No performance claim
+is based on simultaneous builds or comparisons between Debug and Release.
 
-
-## Latest lifetime and Android verification
-
-After callback contract, nested-activation, and GUI ownership changes, all 56
-Release and Address/Undefined Behavior sanitizer CTests and real optional package
-tests passed. LeakSanitizer is unavailable on this macOS configuration; the run
-uses `detect_leaks=0`. Callback arity and invocation argument/result
-contracts are enforced through `any`; a live GUI child retains its native parent.
-Android native loading now resolves the adapter beside the application library
-and loader failures include their underlying platform error. The rebuilt Release
-APK passed the lifecycle smoke again. Hosted platform CI is running through draft PR #6. Its initial Android setup
-failed because the setup action requested the retired SDK `tools` package; the
-workflow now explicitly requests `platform-tools`. The workflow also now selects Qt’s `linux_gcc_64` archive and explicit Android
-API 28, matching the locally verified toolchain. Other platform results remain
-pending. All 58 CTests passed in the local optional-adapter configuration.
-
-
-Generated Android Qt/NDK and sanitizer build directories have verified local tar
-backups under `build-release/verification`; restore them before rebuilding those
-configurations. Source, Release CLI, native adapters, APKs, and test logs remain.
-
-
-Retained roots and resource leases now prune expired bookkeeping independently
-of object GC. Stress tests create/release 10,000 leases, preserve a live retained
-root, and verify bounded metadata and exactly-once destruction. The ABI resource
-identity cache drops the final lease's entry. Extension namespace completion,
-hover, and definitions read unsaved imported modules, retain alias targets, and
-follow relative re-exports; six extension tests pass, and the VSIX was rebuilt.
-
-Hosted core builds passed on Linux and macOS. Windows exposed a color-fixture
-newline assumption; the assertion now normalizes CRLF before checking the
-message. Optional Qt 6.7 desktop builds are pinned to macOS 14 because the
-macOS-latest SDK removed AGL, which that Qt package still links. Android retains
-its independently verified Qt 6.7.3 toolchain. Latest hosted runs remain pending.
-
-Installation failure tests now verify lock rollback when the second lock path is
-unwritable, reject removed native dependencies with `--locked`, and remove stale
-native registrations on a normal install. Verified content-addressed artifacts
-may remain unreferenced after a failed install. This is exception/error rollback,
-not a crash-safe two-file database transaction.
-
-Hosted optional builds exposed a scoped Armadillo imported target in the C++
-oracle; it now resolves Armadillo in its own CMake directory. The hosted Apple
-runner cannot initialize nested HVF acceleration. Its emulator job is trying
-software acceleration with a bounded boot timeout; that hosted smoke remains
-unverified until it passes. Local physical-host emulator smoke passed.
-
-The CLI, npm adapter, extension, and native package metadata now prepare version
-1.0.16. CLI help/version/doctor/REPL derive their version from CMake. The npm
-release job prepares a verified `.tgz` for owner publication rather than calling
-`npm publish`. No tag or public release was created.
-
-Geometry and GUI fixed-workload C++ comparisons now verify every hull coordinate
-and exact timer callback counts, record repeated process timing/RSS/artifact
-sizes, and support matching-input baseline comparisons. See
-[the native workload checkpoint](performance/native-workloads-checkpoint.json).
-GUI window dimensions reject nonpositive values and 32-bit overflow through
-`any`, with stable `KNATIVE1003` failures.
-
-Final Android source was rebuilt and the signed APK again passed actual ARM64
-installation and lifecycle smoke. Extension formatting now handles split UTF-8
-and cancelled/broken stdin safely; inspection cancels stale processes, respects
-save failures, and disposes its child on extension shutdown. All 11 focused Node
-tests pass. `ky build --native` now reports `KBUILD1004` for missing CMake and
-`KBUILD1005` for configuration/compiler failures, with bounded tool output in
-diagnostic notes. A test compiles an authored C++ ABI 2 module through that CLI
-path and invokes its typed resource exports from Kyna.
-
-Hosted optional-package CTests passed on macOS 14 and Linux at the earlier
-`ed6f234` checkpoint. Windows optional dependencies and hosted Android software
-emulation were pending at that checkpoint (the hosted emulator later failed
-HVF initialization). Final callback regressions now preserve originating
-files/lines and stack frames across C ABI 2 for VM and imported tree-walk
-callbacks. Tree-walk language throws retain their language error code rather than
-being classified as a C++ implementation exception. Regression-oracle assertions
-are enabled for MSVC Release builds as well.
-
-A teardown regression reproduced recursive tree-walk environment/function cycles
-surviving interpreter destruction. Owned environments are now tracked weakly and
-cleared before heap teardown; nested callback and global environments expire in
-the regression test. This fixes session shutdown; it does not claim mid-session
-collection of all tree-walk shared-ownership cycles.
-
-The final local Release suite passed 56 tests and the optional-library suite
-passed 58 tests. Core hosted CI passed on Windows, macOS, and Linux at `ed6f234`.
-The hosted ARM64 emulator failed HVF initialization before boot. Hosted CI now
-uploads the cross-compiled APK separately; an explicit physical ARM64 runner job
-owns the application smoke gate. That runner has not been provisioned here.
-VSIX packaging includes type, native-binding, GUI/geometry/ML, dependency, and
-Android documentation, and installed examples include `.ky` modules and OFF data.
-
-The final lifetime changes also passed all 56 AddressSanitizer/UndefinedBehaviorSanitizer CTests locally. The verified current sanitizer build was archived before removing its generated checkout to recover space.
+Generated Qt/NDK toolchains are preserved in verified local backups under
+`build-release/verification`. Emulator images use sparse restoration. Sanitizer
+logs are preserved; its previous generated archive was removed for recording
+space. Project source and lockfiles were preserved during authorized cleanup.

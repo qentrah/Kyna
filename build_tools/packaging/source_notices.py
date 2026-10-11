@@ -4,9 +4,10 @@
 Source archives remain separate release materials. Nothing is installed or executed.
 """
 import argparse, concurrent.futures, hashlib, json, pathlib, re, subprocess, tarfile
+from portable_runtime import digest
 
 def sha(path):
-    with path.open('rb') as stream: return hashlib.file_digest(stream,'sha256').hexdigest()
+    return digest(path)
 
 def download_source(url,expected,archive):
     if not url.startswith('https://') or not re.fullmatch(r'[a-f0-9]{64}',expected):
@@ -20,15 +21,18 @@ def download_source(url,expected,archive):
         pending.replace(archive)
 
 def extract_notices(archive,payload,name):
-    notices=[]
+    if not re.fullmatch(r'[A-Za-z0-9_.@+-]+',name):raise RuntimeError('Unsafe source package name')
+    notices=[];total=0
     with tarfile.open(archive,'r:*') as tar:
         for member in tar:
             if not member.isfile() or member.size>2*1024*1024:continue
             parts=pathlib.PurePosixPath(member.name).parts
-            if '..' in parts or member.name.startswith('/'):raise RuntimeError('Unsafe upstream source member')
+            if '..' in parts or member.name.startswith('/') or '\\' in member.name or ':' in member.name:raise RuntimeError('Unsafe upstream source member')
             filename=parts[-1].lower()
             if not (filename.startswith(('license','licence','copying','copyright','notice')) or 'licenses' in (p.lower() for p in parts) or filename=='qt_attribution.json'):continue
-            destination=payload/'licenses/upstream'/name/pathlib.Path(*parts[1:])
+            total+=member.size
+            if total>64*1024*1024 or len(notices)>=10000:raise RuntimeError('Upstream notices exceed extraction bounds')
+            destination=payload/'licenses/upstream'/name/pathlib.Path(*(parts[1:] if len(parts)>1 else parts))
             destination.parent.mkdir(parents=True,exist_ok=True)
             with tar.extractfile(member) as stream:destination.write_bytes(stream.read())
             notices.append(destination.relative_to(payload).as_posix())

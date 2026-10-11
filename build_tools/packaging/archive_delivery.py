@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Archive only verified delivery directories, with matching native metadata and hashes."""
 import argparse,hashlib,json,pathlib,re,subprocess,sys,tarfile,zipfile
+from portable_runtime import digest as sha256_file, native_file
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -19,9 +20,13 @@ def main():
         for binary in inventory['binaries']:
             path=(directory/binary['path']).resolve()
             if not path.is_relative_to(directory.resolve()):raise RuntimeError('Inventory path escapes package')
-            with path.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
+            digest=sha256_file(path)
             if digest!=binary['sha256']:raise RuntimeError('Binary changed after inventory: '+binary['path'])
         if any(path.is_symlink() for path in directory.rglob('*')):raise RuntimeError('Package contains links')
+        listed={binary['path'] for binary in inventory['binaries']}
+        for path in directory.rglob('*'):
+            if path.is_file() and native_file(path) and path.relative_to(directory).as_posix() not in listed:
+                raise RuntimeError('Untracked native binary in payload: '+path.name)
     args.output.mkdir(parents=True,exist_ok=True)
     if args.native_only and not verification.get('native_application_smoke'):raise RuntimeError('Native delivery has not passed application checks')
     if not args.native_only and not args.target.startswith('windows'):
@@ -41,7 +46,7 @@ def main():
     entries=[]
     for file in sorted(args.output.iterdir()):
         if file.is_file() and file.name!='SHA256SUMS':
-            with file.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
+            digest=sha256_file(file)
             entries.append(digest+'  '+file.name+'\n')
     (args.output/'SHA256SUMS').write_text(''.join(entries))
     print('Archived verified delivery:',args.target)

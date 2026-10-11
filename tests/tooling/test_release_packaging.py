@@ -1,12 +1,35 @@
 #!/usr/bin/env python3
 """Release gates reject modified payloads and unaccepted notarization responses."""
-import hashlib, importlib.util, json, os, pathlib, subprocess, sys, tempfile, unittest
+import hashlib, io, json, os, pathlib, subprocess, sys, tarfile, tempfile, unittest
 from unittest.mock import patch
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'build_tools/packaging'))
-import notarize_payload, sign_payload
+import notarize_payload, sign_payload, source_notices, portable_runtime
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_hashing_does_not_require_python_311(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path=pathlib.Path(temporary)/'binary';path.write_bytes(b'release-payload')
+            with patch.object(hashlib,'file_digest',None,create=True):
+                self.assertEqual(portable_runtime.digest(path),hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_source_notice_rejects_windows_escape(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory=pathlib.Path(temporary);archive=directory/'source.tar.gz'
+            with tarfile.open(archive,'w:gz') as tar:
+                entry=tarfile.TarInfo('source/C:\\outside/LICENSE');entry.size=1;tar.addfile(entry,io.BytesIO(b'x'))
+            with self.assertRaisesRegex(RuntimeError,'Unsafe upstream'):
+                source_notices.extract_notices(archive,directory/'payload','fixture')
+
+    def test_source_notice_handles_root_license(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory=pathlib.Path(temporary);archive=directory/'source.tar.gz'
+            with tarfile.open(archive,'w:gz') as tar:
+                entry=tarfile.TarInfo('LICENSE');entry.size=1;tar.addfile(entry,io.BytesIO(b'x'))
+            names=source_notices.extract_notices(archive,directory/'payload','fixture')
+            self.assertEqual(names,['licenses/upstream/fixture/LICENSE'])
+            self.assertEqual((directory/'payload'/names[0]).read_bytes(),b'x')
+
     def test_archive_rejects_modified_binary(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory=pathlib.Path(temporary);delivery=directory/'delivery';cli=delivery/'cli';cli.mkdir(parents=True)

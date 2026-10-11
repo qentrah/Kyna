@@ -7,7 +7,10 @@ def run(*arguments):
 
 def digest(path):
     with path.open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
+        checksum = hashlib.sha256()
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            checksum.update(block)
+        return checksum.hexdigest()
 
 def macho_dependencies(path):
     return [line.strip().split(' (compatibility', 1)[0] for line in run('otool', '-L', path).splitlines()[1:]]

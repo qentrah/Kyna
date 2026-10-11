@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sign release payloads, validate signatures, and refresh their byte inventories."""
 import argparse, base64, hashlib, json, os, pathlib, plistlib, shutil, subprocess, sys, tempfile
-from portable_runtime import native_file
+from portable_runtime import digest
 
 
 def run(*args):
@@ -71,8 +71,7 @@ def main():
             raise RuntimeError('Signing is supported only on macOS and Windows')
     for root, file, inventory, binaries in inventories:
         for binary, path in zip(inventory['binaries'], binaries):
-            with path.open('rb') as stream:
-                binary['sha256'] = hashlib.file_digest(stream, 'sha256').hexdigest()
+            binary['sha256'] = digest(path)
         inventory['release_signed'] = True
         file.write_text(json.dumps(inventory, indent=2) + '\n')
 

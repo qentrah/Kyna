@@ -64,10 +64,12 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PYCODE'
-          import hashlib,json,pathlib
+          import json,pathlib,sys
+          sys.path.insert(0, "build_tools/packaging")
+          from portable_runtime import digest
           root=pathlib.Path('package');file=root/'runtime-inventory.json';inventory=json.loads(file.read_text())
           for binary in inventory['binaries']:
-              with (root/binary['path']).open('rb') as stream: binary['sha256']=hashlib.file_digest(stream,'sha256').hexdigest()
+              binary['sha256']=digest(root/binary['path'])
           file.write_text(json.dumps(inventory,indent=2)+'\n')
           PYCODE
       - name: Create Unix archive

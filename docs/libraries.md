@@ -79,12 +79,18 @@ checksums verify integrity, not publisher identity.
 
 `ky build main.ky --output dist/my-app` checks and stages application modules,
 installed native artifacts, the CLI, launchers, and `SHA256SUMS` in a fresh folder.
-Runtime dependencies of native libraries must also be installed on the target;
-this staging command does not yet relocate Qt frameworks or CGAL/mlpack dynamic
-dependencies. `ky build ./my-binding --native --output build-binding` explicitly
+Verified portable native archives contain their runtime dependencies. Application
+staging preserves those dependencies, Qt imports/plugins/framework resources and
+licenses. Raw adapter files require their external dependencies to be installed;
+use [portable packaging](portable-packaging.md) to build complete archives.
+`ky build ./my-binding --native --output build-binding` explicitly
 runs an authored CMake build. See [Android](android.md) for the ARM64 shell.
 
 Only locally passed targets are verified here. Desktop CI and Android emulator
 gates must pass before their targets are advertised as supported.
 
-Local archive preparation is documented in [the native packager](../tools/native-packager/README.md). The prepared macOS archives contain adapters and checked wrappers; their dependency metadata explicitly identifies external runtime libraries. Portable deployment remains a release gate.
+Local archive preparation is documented in [the native packager](../tools/native-packager/README.md).
+The verified macOS archives contain adapters, checked wrappers and relocated
+dependency closures. Final platform CI and production signing remain release
+gates. [Working app videos](videos/README.md) show GUI, hull, regression and
+Android lifecycle behavior.

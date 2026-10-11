@@ -17,9 +17,9 @@ code backend. Each behavior below has executable regression coverage.
 New stable codes include `KSYN1301`, `KSYN1302`, `KSEM1308`, `KSEM1309`,
 `KSEM1507`, and `KSEM1604`. See [diagnostics](diagnostics.md).
 
-The current local Release suite passes all 56 CTests. The relocated native package
+The current local Release suite passes all 57 CTests. The relocated native package
 fixture passes GUI callbacks, geometry, regression, checked imports, installation
-and `ky build`. The current source also passes all 56 sanitizer tests and all 58 optional-package
+and `ky build`. The current source also passes all 57 sanitizer tests and all 59 optional-package
 tests. LeakSanitizer is unavailable in the current macOS setup.
 
 Hosted CI at `17bee83` passed core Linux/Windows builds and Android cross-compilation.
