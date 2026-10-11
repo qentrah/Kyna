@@ -125,3 +125,12 @@ root DLL closure explicitly after the Qt application exists, retaining its image
 for Qt global metadata without modifying the process's search policy. The
 relocated application test continues running with the original SDK directories
 removed from PATH. Final hosted verification of this fix remains required.
+
+The Windows relocation fix at `34f8fed` passes all 62 raw CTests and the SDK-free
+GUI/geometry/ML application, install and build checks. The final loader audit
+limits preloading to inventoried root DLLs and reuses already loaded host modules.
+New Windows portable fixtures plant an unlisted invalid DLL and recover from a
+malformed inventory in the same VM. QML engines commit only after configuration
+succeeds. All 62 local optional CTests pass after this ownership change. Rams
+quick_review was requested again with via=rules for the GUI file and returned
+exhausted one-time review credits; it returned no findings.

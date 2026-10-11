@@ -68,3 +68,10 @@ DLL images follow the same process-exit residency rule as Qt plugin code; sessio
 objects and callback roots still close normally. This uses
 [LoadLibraryExW's explicit altered search path](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw),
 without changing PATH or the embedding host's global DLL search policy.
+
+Only root DLLs named in `runtime-inventory.json` are preloaded; unlisted files
+are ignored. An existing embedding host's loaded DLLs are reused and retained
+rather than loading another copy of Qt's global state. A failed inventory or DLL
+load does not commit a partially initialized QML engine, so startup can retry
+after correction in the same session. Installed inventory/files remain covered
+by the native lockfile checksums.

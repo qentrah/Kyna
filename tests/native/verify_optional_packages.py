@@ -17,11 +17,33 @@ assert "[9, 11]" in run(["--native-library",ml,"run",root/"examples/native/apps/
 assert "1" in run(["--native-library",geometry,"run",root/"examples/native/apps/hull.ky"]).stdout
 mesh_output = run(["--native-library",geometry,"run",root/"examples/native/apps/mesh.ky"]).stdout
 assert abs(float(mesh_output.splitlines()[-1]) - 1/6) < 1e-6
-assert "GUI callback delivered" in run(["--native-library",gui,"run",root/"examples/native/apps/gui_smoke.ky"]).stdout
+unexpected=gui.parent/'unlisted-kyna-test.dll'
+portable_windows_gui=sys.platform=='win32' and (gui.parent/'runtime-inventory.json').is_file()
+if portable_windows_gui:
+    assert not unexpected.exists()
+    unexpected.write_bytes(b'not an executable DLL')
+try:
+    assert "GUI callback delivered" in run(["--native-library",gui,"run",root/"examples/native/apps/gui_smoke.ky"]).stdout
+finally:
+    if portable_windows_gui:unexpected.unlink()
 with tempfile.TemporaryDirectory(prefix="kyna-native-packages-") as folder:
     project=pathlib.Path(folder)
     def source(code):
         p=project/"main.ky";p.write_text(code);return p
+    if portable_windows_gui:
+        # Failed initialization must not commit a partially configured engine.
+        # Restore the inventory inside the same VM, then retry GUI startup.
+        import json
+        inventory=gui.parent/'runtime-inventory.json';original=inventory.read_text()
+        restored=json.dumps(original,ensure_ascii=False)
+        path=json.dumps(inventory.as_posix(),ensure_ascii=False)
+        recovery=source('try { guiWindow("Unavailable",64,64); } catch (failure) { console.log("GUI_INIT_REJECTED"); } writeFile('+path+','+restored+'); var w=guiWindow("Recovered",64,64); fn stop(): void { guiQuit(); } guiAfter(1,stop); gc(); guiRun(); console.log("GUI_INIT_RECOVERED");')
+        run(['--native-library',gui,'check',recovery],cwd=project)
+        try:
+            inventory.write_text('{"schema":"invalid","binaries":[]}')
+            recovered=run(['--native-library',gui,'run',recovery],cwd=project)
+            assert 'GUI_INIT_REJECTED' in recovered.stdout and 'GUI_INIT_RECOVERED' in recovered.stdout,recovered
+        finally:inventory.write_text(original)
     # ky build --native compiles an authored C++ adapter, not just a staging shell.
     native_source = project/"authored-native"
     native_source.mkdir()
