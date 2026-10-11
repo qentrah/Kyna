@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Kyna K logo">
-  <g fill="none" stroke="#4F46E5" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 60 38 L 60 218"/>
-    <path d="M 74 128 L 202 38"/>
-    <path d="M 74 128 L 202 218"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#111"/><path fill="#fff" d="M12 10a4 4 0 0 1 4-4h9v26L43 8a5 5 0 0 1 4-2h11L37 32l21 26H47a5 5 0 0 1-4-2L25 34v24h-9a4 4 0 0 1-4-4z"/></svg>

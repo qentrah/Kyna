@@ -1,11 +1,5 @@
 # Kyna
 
-[![Kyna — 30-second programming language demo](docs/media/kyna-cover.jpg)](docs/media/kyna-30s.mp4)
-
-Watch Kyna run real code and catch a type error in the [30-second demo](docs/media/kyna-30s.mp4), or [watch it on TikTok](https://www.tiktok.com/@e.nsan/video/7694926382526106898).
-
-**Tags:** `Kyna` · `ProgrammingLanguage` · `Coding` · `Compiler` · `OpenSource` · `BuildInPublic` · `Developer`
-
 <p align="center">
   <img src="editors/vscode-kyna/assets/kyna-k.svg" width="96" alt="Kyna logo">
 </p>
@@ -17,7 +11,7 @@ Watch Kyna run real code and catch a type error in the [30-second demo](docs/med
 <p align="center">
   <a href="https://www.npmjs.com/package/@kyna-language/cli">npm</a>
   ·
-  <a href="https://github.com/Up-to-code/Kyna/releases">Releases</a>
+  <a href="https://github.com/qentrah/Kyna/releases">Releases</a>
   ·
   <a href="https://up-to-code.github.io/kyna-docs/">Documentation</a>
   ·
@@ -45,12 +39,12 @@ Other installation paths:
 bun add --global --trust @kyna-language/cli@preview
 
 # macOS or Linux without a package manager.
-curl -fsSL https://github.com/Up-to-code/Kyna/releases/download/v1.0.0-preview.3/install.sh | sh -s -- --channel preview --version 1.0.0-preview.3
+curl -fsSL https://github.com/qentrah/Kyna/releases/download/v1.0.0-preview.3/install.sh | sh -s -- --channel preview --version 1.0.0-preview.3
 ```
 
 ```powershell
 # Windows PowerShell without a package manager.
-& ([scriptblock]::Create((irm 'https://github.com/Up-to-code/Kyna/releases/download/v1.0.0-preview.3/install.ps1'))) -Channel preview -Version 1.0.0-preview.3
+& ([scriptblock]::Create((irm 'https://github.com/qentrah/Kyna/releases/download/v1.0.0-preview.3/install.ps1'))) -Channel preview -Version 1.0.0-preview.3
 ```
 
 The Bun package path currently requires Node.js 18+ for the command shim. The
@@ -153,7 +147,7 @@ and [compiler research](docs/compiler-architecture-research.md) for the complete
 Requirements: CMake 3.25+, Python 3.10+, a C++23 compiler, and libcurl.
 
 ```sh
-git clone https://github.com/Up-to-code/Kyna.git
+git clone https://github.com/qentrah/Kyna.git
 cd Kyna
 cmake --preset debug
 cmake --build --preset debug
