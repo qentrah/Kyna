@@ -12,7 +12,7 @@ const { extractArchive } = require("./extract");
 const { releaseAsset } = require("./platform");
 const packageMetadata = require("../package.json");
 
-const REPOSITORY = "Up-to-code/Kyna";
+const REPOSITORY = "qentrah/Kyna";
 
 async function install() {
   if (process.env.KYNA_NPM_SKIP_DOWNLOAD === "1") {

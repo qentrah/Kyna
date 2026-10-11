@@ -53,3 +53,12 @@ test("accepts only the GitHub release download origins", () => {
   assert.throws(() => validateUrl("http://github.com/Up-to-code/Kyna"), /untrusted/u);
   assert.throws(() => validateUrl("https://example.com/archive"), /untrusted/u);
 });
+
+test("prepared npm, CLI, and extension versions agree", () => {
+  const root = path.resolve(__dirname, "../../..");
+  const cmake = fs.readFileSync(path.join(root, "CMakeLists.txt"), "utf8");
+  const version = cmake.match(/project\(kyna VERSION ([0-9.]+)/u)[1];
+  assert.equal(require("../package.json").version.split("-")[0], version);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, "editors/vscode-kyna/package.json"))).version, version);
+  assert.equal(require("../package-lock.json").version, require("../package.json").version);
+});

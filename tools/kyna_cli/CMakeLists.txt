@@ -32,6 +32,7 @@ add_executable(kyna
   src/rendering/rich_diagnostic_renderer.cpp)
 target_link_libraries(kyna PRIVATE kyna_embedding kyna_standard_library CLI11::CLI11 tomlplusplus::tomlplusplus
   ftxui::component ftxui::dom ftxui::screen)
+target_compile_definitions(kyna PRIVATE KYNA_VERSION_STRING="${PROJECT_VERSION}")
 kyna_configure_target(kyna)
 set_target_properties(kyna PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set_target_properties(kyna PROPERTIES OUTPUT_NAME ky)

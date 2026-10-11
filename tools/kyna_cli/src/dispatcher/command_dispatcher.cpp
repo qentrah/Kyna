@@ -74,7 +74,7 @@ int dispatch(const Options &options, std::istream &input, std::ostream &output,
     return 2;
   }
   if (options.command == Command::Help) {
-    output << "Kyna 1.0.0\n\n"
+    output << "Kyna " KYNA_VERSION_STRING "\n\n"
               "Usage: ky <command> [options]\n\n"
               "Code\n"
               "  run [entry]        Run a file or project (ky file.ky also works)\n"
@@ -110,7 +110,7 @@ int dispatch(const Options &options, std::istream &input, std::ostream &output,
     return 0;
   }
   if (options.command == Command::Version) {
-    output << "ky 1.0.0 (Kyna 1.0.0)\n";
+    output << "ky " KYNA_VERSION_STRING " (Kyna " KYNA_VERSION_STRING ")\n";
     return 0;
   }
   if (options.command == Command::Repl)

@@ -1,6 +1,6 @@
 # @kyna-language/cli
 
-The official npm installer for the native [Kyna programming language](https://github.com/Up-to-code/Kyna) CLI.
+The official npm installer for the native [Kyna programming language](https://github.com/qentrah/Kyna) CLI.
 
 ## Install
 
@@ -43,13 +43,13 @@ stable release.
 macOS or Linux:
 
 ```sh
-curl -fsSL https://github.com/Up-to-code/Kyna/releases/download/v1.0.0-preview.3/install.sh | sh -s -- --channel preview --version 1.0.0-preview.3
+curl -fsSL https://github.com/qentrah/Kyna/releases/download/v1.0.0-preview.3/install.sh | sh -s -- --channel preview --version 1.0.0-preview.3
 ```
 
 Windows PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/Up-to-code/Kyna/releases/download/v1.0.0-preview.3/install.ps1'))) -Channel preview -Version 1.0.0-preview.3
+& ([scriptblock]::Create((irm 'https://github.com/qentrah/Kyna/releases/download/v1.0.0-preview.3/install.ps1'))) -Channel preview -Version 1.0.0-preview.3
 ```
 
 ## Supported systems
@@ -79,9 +79,17 @@ publishing its immutable npm version.
 
 ## Links
 
-- [Source and main README](https://github.com/Up-to-code/Kyna)
-- [Releases](https://github.com/Up-to-code/Kyna/releases)
-- [Installation documentation](https://github.com/Up-to-code/Kyna/blob/main/docs/distribution.md)
-- [Report an issue](https://github.com/Up-to-code/Kyna/issues)
+- [Source and main README](https://github.com/qentrah/Kyna)
+- [Releases](https://github.com/qentrah/Kyna/releases)
+- [Installation documentation](https://github.com/qentrah/Kyna/blob/main/docs/distribution.md)
+- [Report an issue](https://github.com/qentrah/Kyna/issues)
 
 MIT © Ahmed Mansour
+
+## Prepared upgrade
+
+This checkout prepares version `1.0.16` for the matching GitHub tag `v1.0.16`.
+The release workflow tests the native archive, packages the npm adapter, and
+uploads its `.tgz` for the owner to publish from their account. It does not
+publish npm automatically. An npm installation of this version requires the
+matching release archives and SHA256SUMS to be published first.

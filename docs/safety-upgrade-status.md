@@ -163,3 +163,15 @@ oracle; it now resolves Armadillo in its own CMake directory. The hosted Apple
 runner cannot initialize nested HVF acceleration. Its emulator job is trying
 software acceleration with a bounded boot timeout; that hosted smoke remains
 unverified until it passes. Local physical-host emulator smoke passed.
+
+The CLI, npm adapter, extension, and native package metadata now prepare version
+1.0.16. CLI help/version/doctor/REPL derive their version from CMake. The npm
+release job prepares a verified `.tgz` for owner publication rather than calling
+`npm publish`. No tag or public release was created.
+
+Geometry and GUI fixed-workload C++ comparisons now verify every hull coordinate
+and exact timer callback counts, record repeated process timing/RSS/artifact
+sizes, and support matching-input baseline comparisons. See
+[the native workload checkpoint](performance/native-workloads-checkpoint.json).
+GUI window dimensions reject nonpositive values and 32-bit overflow through
+`any`, with stable `KNATIVE1003` failures.

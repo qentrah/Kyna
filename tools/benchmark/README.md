@@ -86,3 +86,24 @@ The switch and typed-callback pairs compare identical output against C++.
 The type-contract workload exercises aliases, type-only imports, and checked
 function contracts across source modules. Native library workloads await their
 actual package implementations.
+
+## Optional native workloads
+
+Build with GUI and geometry enabled, then build `kyna_gui_benchmark` and
+`kyna_geometry_benchmark`. Compare fixed convex hulls and 1,000 Qt timer callbacks:
+
+```sh
+python3 tools/benchmark/run_native_benchmark.py --build build-native \
+  --ky build-release/bin/ky --output native-baseline.json
+python3 tools/benchmark/run_native_benchmark.py --build build-native \
+  --ky build-release/bin/ky --baseline native-baseline.json --output native-after.json
+```
+
+Both engines verify every hull coordinate or the exact callback count before a
+sample is accepted. The report includes five repetitions after two warmups,
+process wall time, peak RSS on macOS/Linux, input and artifact fingerprints,
+binary sizes, and optional baseline-relative percentages. Use the same build
+configuration and idle hardware. These process measurements include CLI startup
+and checking; they do not isolate binding overhead. The regression oracle
+separately measures direct C++ prediction versus native conversion/dispatch.
+Hosted timings remain informational.

@@ -1,16 +1,16 @@
 {
   "name": "@kyna-language/cli",
-  "version": "1.0.0",
+  "version": "1.0.16",
   "description": "Verified native installer and command shims for the Kyna programming language",
   "license": "MIT",
-  "homepage": "https://github.com/Up-to-code/Kyna#readme",
+  "homepage": "https://github.com/qentrah/Kyna#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Up-to-code/Kyna.git",
+    "url": "git+https://github.com/qentrah/Kyna.git",
     "directory": "tools/npm-installer"
   },
   "bugs": {
-    "url": "https://github.com/Up-to-code/Kyna/issues"
+    "url": "https://github.com/qentrah/Kyna/issues"
   },
   "keywords": [
     "kyna",

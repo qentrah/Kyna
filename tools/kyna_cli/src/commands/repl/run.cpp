@@ -15,7 +15,7 @@ int runRepl(const Options &options, std::istream &input, std::ostream &output,
   std::vector<std::string> history;
   const auto project = detectReplProject();
   ReplLineEditor editor(history, options.richTerminal, project);
-  output << "Kyna 1.0.0 · interactive playground\n";
+  output << "Kyna " KYNA_VERSION_STRING " · interactive playground\n";
   if (options.interactiveTerminal) {
     output << "  "
            << (project.initialized ? "Project: " + project.name + " · " + project.version
