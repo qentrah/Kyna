@@ -76,3 +76,13 @@ Provision Python, JDK 17, the Android SDK and emulator, and at least 8 GiB free;
 then enable `android-emulator-smoke` when dispatching Optional native packages.
 That job installs the build artifact and requires the lifecycle/callback/shutdown
 marker. A hosted build passing without this gate is compilation evidence only.
+
+Release preparation names the signed demo `kyna-android-arm64-smoke.apk` and
+uploads that single APK rather than intermediate unsigned build directories.
+Its version name follows the core project version. CI collects vendor-checksummed
+Qt 6.7.3 source archives and embeds their notices, source inventory and Kyna license
+through `KYNA_ANDROID_NOTICES_QRC`; matching Qt source archives accompany the APK.
+These resources are extracted under the application's `licenses/` directory.
+Application authors can present them in their own About/licenses UI. The smoke
+certificate remains explicitly temporary, and production licensing/signing review
+still applies.

@@ -150,18 +150,24 @@ jobs:
           target: desktop
           arch: clang_64
           dir: '${{ github.workspace }}/Qt'
+      - name: Collect verified Qt notices for the application
+        run: python3 build_tools/packaging/qt_source_notices.py --version 6.7.3 --payload android-notices --cache android-qt-sources --qrc android-notices.qrc
       - name: Cross-compile runtime and application shell
         shell: bash
         run: |
-          "$GITHUB_WORKSPACE/Qt/Qt/6.7.3/android_arm64_v8a/bin/qt-cmake" -S . -B build-android -DCMAKE_BUILD_TYPE=Release -DKYNA_BUILD_TESTS=OFF -DKYNA_BUILD_CLI=OFF -DKYNA_WITH_GUI=ON -DKYNA_ANDROID_SHELL=ON -DANDROID_PLATFORM=android-28 -DQT_HOST_PATH="$GITHUB_WORKSPACE/Qt/Qt/6.7.3/macos" -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/26.1.10909125"
+          "$GITHUB_WORKSPACE/Qt/Qt/6.7.3/android_arm64_v8a/bin/qt-cmake" -S . -B build-android -DCMAKE_BUILD_TYPE=Release -DKYNA_BUILD_TESTS=OFF -DKYNA_BUILD_CLI=OFF -DKYNA_WITH_GUI=ON -DKYNA_ANDROID_SHELL=ON -DKYNA_ANDROID_NOTICES_QRC="$GITHUB_WORKSPACE/android-notices.qrc" -DANDROID_PLATFORM=android-28 -DQT_HOST_PATH="$GITHUB_WORKSPACE/Qt/Qt/6.7.3/macos" -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/26.1.10909125"
           cmake --build build-android --target apk --parallel 3
       - name: Sign APK with an ephemeral smoke-test key
         shell: bash
-        run: python3 tests/native/sign_android_smoke.py "$(find build-android -name '*.apk' -print -quit)" build-android/kyna-smoke.apk
+        run: python3 tests/native/sign_android_smoke.py "$(find build-android -name '*.apk' -print -quit)" build-android/kyna-android-arm64-smoke.apk
+      - name: Archive matching Qt corresponding source
+        run: tar -czf kyna-android-qt-sources-6.7.3.tar.gz -C android-qt-sources .
       - uses: actions/upload-artifact@v6
         with:
           name: android-arm64
-          path: build-android/**/*.apk
+          path: |
+            build-android/kyna-android-arm64-smoke.apk
+            kyna-android-qt-sources-6.7.3.tar.gz
 
   # Hosted macOS VMs cannot initialize HVF for nested ARM64 emulation. The
   # application gate runs only on an explicitly provisioned physical runner;
@@ -185,7 +191,7 @@ jobs:
           emulator-boot-timeout: 300
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel on -no-snapshot
           script: |
-            adb install "$(find android-artifacts -name kyna-smoke.apk -print -quit)"
+            adb install "$(find android-artifacts -name kyna-android-arm64-smoke.apk -print -quit)"
             adb logcat -c
             adb shell monkey -p org.kyna.application 1
             python3 tests/native/verify_android_smoke.py

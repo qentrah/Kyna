@@ -4,9 +4,20 @@ import hashlib, io, json, os, pathlib, subprocess, sys, tarfile, tempfile, unitt
 from unittest.mock import patch
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'build_tools/packaging'))
-import notarize_payload, sign_payload, source_notices, portable_runtime
+import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_android_notice_resources_include_checked_inventory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);payload=root/'payload';licenses=payload/'licenses';licenses.mkdir(parents=True)
+            for name in ('qt-source-inventory.json','Kyna-LICENSE.txt','Qt-LICENSE.txt'):(licenses/name).write_text('notice')
+            output=root/'notices.qrc';qt_source_notices.write_qrc(payload,output,[{'notices':['licenses/Qt-LICENSE.txt']}])
+            document=qt_source_notices.ET.parse(output)
+            aliases={file.attrib['alias'] for file in document.findall('./qresource/file')}
+            self.assertEqual(aliases,{'licenses/qt-source-inventory.json','licenses/Kyna-LICENSE.txt','licenses/Qt-LICENSE.txt'})
+            with self.assertRaisesRegex(RuntimeError,'Invalid Qt notice resource'):
+                qt_source_notices.write_qrc(payload,output,[{'notices':['../../outside']}])
+
     def test_dependency_tool_failure_preserves_diagnostic(self):
         failure=subprocess.CalledProcessError(1,['cmake'],output='unresolved dependency: required.dll')
         with patch.object(portable_runtime.subprocess,'check_output',side_effect=failure):
