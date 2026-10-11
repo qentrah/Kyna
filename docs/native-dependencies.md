@@ -25,7 +25,10 @@ Cross-platform release bundles still require relocation/deployment validation.
 Headless application verification uses Qt's [software scene-graph renderer](https://doc.qt.io/qt-6/qtquick-visualcanvas-adaptations-software.html)
 with `QT_QUICK_BACKEND=software` and the offscreen platform. This checks GUI events
 and lifecycle without requiring a hosted-runner GPU; it does not establish hardware
-renderer coverage. Windows Qt messages are forced to stderr, and failed child
+renderer coverage. On Windows, `QT_QPA_FONTDIR` points at the installed system
+font directory: Qt 6.7.3's [offscreen integration](https://github.com/qt/qtbase/blob/v6.7.3/src/plugins/platforms/offscreen/qoffscreenintegration.cpp)
+uses the FreeType font database, whose [font-directory lookup](https://github.com/qt/qtbase/blob/v6.7.3/src/gui/text/qplatformfontdatabase.cpp)
+honors that variable. System fonts are not copied into Kyna archives. Windows Qt messages are forced to stderr, and failed child
 processes report their decimal and hexadecimal exit codes. A manual optional-package
 workflow can select one desktop target for diagnosis; normal PR/release runs retain
 all five desktop targets and Android cross-compilation.
