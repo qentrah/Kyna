@@ -7,6 +7,23 @@ sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_nested_release_artifacts_are_rejected_before_upload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            nested=root/'build-android';nested.mkdir();(nested/'smoke.apk').write_bytes(b'apk')
+            with patch.object(publish_release.subprocess,'run') as run:
+                with self.assertRaisesRegex(RuntimeError,'flat directory'):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                run.assert_not_called()
+
+    def test_release_without_checksums_is_rejected_before_upload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'smoke.apk').write_bytes(b'apk')
+            with patch.object(publish_release.subprocess,'run') as run:
+                with self.assertRaisesRegex(RuntimeError,'checksums are missing'):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                run.assert_not_called()
+
     def test_prepared_draft_receives_assets_before_publication(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums');(root/'kyna-test.tar.gz').write_bytes(b'archive')
