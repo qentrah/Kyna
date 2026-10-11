@@ -30,6 +30,8 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DKYNA_BUILD_TESTS=ON -DKYNA_FETCH_DEPENDENCIES=OFF -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
       - name: Build
         run: cmake --build build --config Release --parallel
+      - name: Install extension runtime dependencies
+        run: npm ci --omit=dev --ignore-scripts --prefix editors/vscode-kyna
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Verify the staged installation

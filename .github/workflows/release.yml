@@ -34,6 +34,8 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test
+        run: npm ci --omit=dev --ignore-scripts --prefix editors/vscode-kyna
+      - name: Test compiler and tooling
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Install ELF relocation tools
         if: runner.os == 'Linux'

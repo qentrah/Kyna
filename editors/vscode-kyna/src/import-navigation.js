@@ -1,6 +1,7 @@
 // Resolves exported declarations through named/namespace imports and re-exports.
 const vscode = require('vscode');
 const path = require('path');
+const { moduleSearchPaths } = require('./module-search-paths');
 function bindings(list) {
   return list.split(',').map(value => value.trim().replace(/^type\s+/, ''))
     .map(value => value.match(/^([A-Za-z_]\w*)(?:\s+as\s+([A-Za-z_]\w*))?$/))
@@ -10,12 +11,14 @@ function source(document) {
   return document.getText().replace(/^\s*#.*$/gm, line => ' '.repeat(line.length));
 }
 async function openModule(document, specifier) {
-  if (!specifier.startsWith('.') && !path.isAbsolute(specifier)) return undefined;
-  const base = path.resolve(path.dirname(document.fileName), specifier);
-  const candidates = [base, ...['.ky', '.kyna', '.ky.d', '.kyna.d', '.d.ky'].map(suffix => base + suffix),
-    path.join(base, 'index.ky'), path.join(base, 'index.kyna')];
-  for (const file of candidates) {
-    try { return await vscode.workspace.openTextDocument(vscode.Uri.file(file)); } catch (_) {}
+  const roots = [path.dirname(document.fileName), ...await moduleSearchPaths(document)];
+  for (const root of roots) {
+    const base = path.resolve(root, specifier);
+    const candidates = path.extname(specifier) ? [base] :
+      [base, ...['.kyna.d', '.kyna', '.d.ky', '.ky.d', '.ky'].map(suffix => base + suffix)];
+    for (const file of candidates) {
+      try { return await vscode.workspace.openTextDocument(vscode.Uri.file(file)); } catch (_) {}
+    }
   }
   return undefined;
 }

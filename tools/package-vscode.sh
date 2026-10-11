@@ -22,6 +22,8 @@ cp "$root/docs/language-spec.md" "$root/docs/diagnostics.md" "$root/docs/stdlib.
   "$root/docs/type-system.md" "$root/docs/native-bindings.md" "$root/docs/libraries.md" \
   "$root/docs/android.md" "$root/docs/native-dependencies.md" "$staging/extension/docs/"
 
+(cd "$staging/extension" && npm ci --omit=dev --ignore-scripts)
+
 (cd "$staging/extension" && npx --yes @vscode/vsce@3.9.2 package \
   --baseImagesUrl "$image_base" \
   --baseContentUrl "$content_base" \

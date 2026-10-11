@@ -82,3 +82,26 @@ test('namespace exports include unsaved aliases and re-exports, excluding privat
   barrel.getText = () => 'export type Edited = string;';
   assert.deepEqual((await exportedSymbols(barrel)).map(item => item.name), ['Edited']);
 });
+
+test('bare package navigation follows native locks and path dependencies with compiler suffix priority', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kyna-navigation-'));
+  try {
+    fs.writeFileSync(path.join(root, 'kyna.toml'), '[project]\n');
+    const main = document(path.join(root,'src/main.ky'), 'import type { Shape } from "geometry";');
+    const manifest = document(path.join(root,'kyna.toml'), '[dependencies.shapes]\npath = "vendor/types"');
+    const lock = document(path.join(root,'.kyna/native.lock'), 'schema = "kyna.native-lock/v1"\n[[package]]\nmodule_root = ".kyna/native/geometry-hash"');
+    const target = document(path.join(root,'.kyna/native/geometry-hash/geometry.ky'), 'export type Shape = int;');
+    assert.deepEqual(await resolveImportedDeclaration(main,'Shape'),{document:target,name:'Shape'});
+    const typed = document(path.join(root,'vendor/types/shapes.kyna.d'), 'export type Shape = string;');
+    document(path.join(root,'vendor/types/shapes.ky'), 'export type Shape = bool;');
+    main.getText=()=> 'import type { Shape } from "shapes";';
+    assert.deepEqual(await resolveImportedDeclaration(main,'Shape'),{document:typed,name:'Shape'});
+    lock.getText=()=> 'schema = "kyna.native-lock/v1"\n[[package]]\nmodule_root = "../outside"';
+    main.getText=()=> 'import type { Shape } from "geometry";';
+    assert.equal(await resolveImportedDeclaration(main,'Shape'),undefined);
+    manifest.getText=()=> '[broken';
+    assert.equal(await resolveImportedDeclaration(main,'Shape'),undefined);
+  } finally { fs.rmSync(root,{recursive:true,force:true}); }
+});

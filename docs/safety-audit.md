@@ -19,10 +19,8 @@ New stable codes include `KSYN1301`, `KSYN1302`, `KSEM1308`, `KSEM1309`,
 
 The current local Release suite passes all 56 CTests. The relocated native package
 fixture passes GUI callbacks, geometry, regression, checked imports, installation
-and `ky build`. The previous lifetime checkpoint passed 56 sanitizer tests and 58
-optional-package tests; changed numeric/packaging sources require a fresh sanitizer
-run before calling the final release fully verified. LeakSanitizer is unavailable
-in the current macOS setup.
+and `ky build`. The current source also passes all 56 sanitizer tests and all 58 optional-package
+tests. LeakSanitizer is unavailable in the current macOS setup.
 
 Hosted CI at `17bee83` passed core Linux/Windows builds and Android cross-compilation.
 Its macOS PTY test exposed an asynchronous exit race; the test now checks process
@@ -38,5 +36,7 @@ gate are distinct. A dedicated physical CI runner has not been provisioned.
 
 Rams `quick_review` was requested with `via: rules` for GUI edits, but the service
 reported exhausted review credits. Direct application testing does not replace
-that outstanding review. Bare-package extension navigation, exact transitive
-license/source inventories and signing/distribution gates remain release blockers.
+that outstanding review. Bare-package extension navigation now follows native lockfiles and path dependencies,
+using a TOML parser and matching the compiler's declaration suffix priority. Twelve
+focused extension tests pass. Exact transitive license/source inventories and
+signing/distribution gates remain release blockers.

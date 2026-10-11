@@ -10,6 +10,7 @@ const { expectedChecksum, verifyChecksum } = require("./checksum");
 const { downloadFile, downloadText } = require("./download");
 const { extractArchive } = require("./extract");
 const { releaseAsset } = require("./platform");
+const { stagePayload } = require("./payload");
 const packageMetadata = require("../package.json");
 
 const REPOSITORY = "qentrah/Kyna";
@@ -35,19 +36,7 @@ async function install() {
     verifyChecksum(archive, expectedChecksum(checksums, asset));
     extractArchive(archive, extracted, process.platform);
 
-    const nativeBin = path.join(extracted, "bin");
-    const expectedBinary = path.join(nativeBin, process.platform === "win32" ? "ky.exe" : "ky");
-    if (!fs.existsSync(expectedBinary)) {
-      throw new Error("The verified Kyna archive does not contain bin/ky.");
-    }
-
-    fs.rmSync(vendor, { force: true, recursive: true });
-    fs.mkdirSync(vendor, { recursive: true });
-    // Retain relocated libraries, licenses, templates and documentation too.
-    fs.cpSync(extracted, vendor, { recursive: true });
-    if (process.platform !== "win32") {
-      fs.chmodSync(path.join(vendor, "bin", "ky"), 0o755);
-    }
+    stagePayload(extracted, vendor, process.platform);
     console.log("Kyna installation complete. Run: ky --version");
   } finally {
     fs.rmSync(temporary, { force: true, recursive: true });

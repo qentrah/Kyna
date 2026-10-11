@@ -90,7 +90,8 @@ def stage(root, binary_paths, search_paths, qt=None, qt_location=pathlib.Path('q
     queries = stage_qt(root, qt_location, qt) if qt else {}
     seeds += [p for p in (root / qt_location).rglob('*') if p.is_file() and native_file(p)]
     searches = [p.resolve() for p in search_paths]
-    if queries: searches.append(pathlib.Path(queries['QT_INSTALL_LIBS']))
+    if queries:
+        searches.extend(pathlib.Path(queries[key]) for key in ('QT_INSTALL_LIBS', 'QT_INSTALL_BINS') if key in queries)
     library_dir = seeds[0].parent if sys.platform == 'win32' else root / 'lib/runtime'
     library_dir.mkdir(parents=True, exist_ok=True)
     copies, origins, system = {}, {}, set()
