@@ -3,6 +3,11 @@ on:
   workflow_call:
   workflow_dispatch:
     inputs:
+      desktop-target:
+        description: Desktop package to verify (all also builds Android)
+        type: choice
+        options: [all, windows-x86_64, darwin-x86_64, darwin-arm64, linux-x86_64, linux-arm64]
+        default: all
       android-emulator-smoke:
         description: Run ARM64 application smoke on the dedicated physical Mac runner
         type: boolean
@@ -18,26 +23,35 @@ concurrency:
   # Preserve long native dependency builds and their reusable binary caches.
   cancel-in-progress: false
 jobs:
+  select-desktop:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        env:
+          REQUESTED_TARGET: ${{ inputs.desktop-target || 'all' }}
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          platforms=[
+            {'os':'ubuntu-24.04','target':'linux-x86_64','qt-arch':'linux_gcc_64'},
+            {'os':'ubuntu-24.04-arm','target':'linux-arm64','system-qt':True},
+            {'os':'windows-latest','target':'windows-x86_64','qt-arch':'win64_msvc2019_64'},
+            {'os':'macos-14','target':'darwin-arm64','qt-arch':'clang_64'},
+            {'os':'macos-15-intel','target':'darwin-x86_64','qt-arch':'clang_64'},
+          ]
+          target=os.environ['REQUESTED_TARGET']
+          selected=platforms if target=='all' else [item for item in platforms if item['target']==target]
+          if not selected:raise SystemExit('Unknown desktop target')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+            output.write('matrix='+json.dumps({'include':selected})+'\n')
+          PYCODE
   desktop:
+    needs: select-desktop
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            target: linux-x86_64
-            qt-arch: linux_gcc_64
-          - os: ubuntu-24.04-arm
-            target: linux-arm64
-            system-qt: true
-          - os: windows-latest
-            target: windows-x86_64
-            qt-arch: win64_msvc2019_64
-          - os: macos-14
-            target: darwin-arm64
-            qt-arch: clang_64
-          - os: macos-15-intel
-            target: darwin-x86_64
-            qt-arch: clang_64
+      matrix: ${{ fromJSON(needs.select-desktop.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     env:
       QT_QPA_PLATFORM: offscreen
@@ -125,6 +139,7 @@ jobs:
           path: .vcpkg-binary-cache
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
   android-arm64:
+    if: ${{ !inputs.desktop-target || inputs.desktop-target == 'all' }}
     runs-on: macos-14
     timeout-minutes: 60
     steps:

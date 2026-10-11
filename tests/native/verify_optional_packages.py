@@ -3,10 +3,10 @@
 import hashlib, os, pathlib, subprocess, sys, tempfile
 ky, root, gui, geometry, ml = map(pathlib.Path, sys.argv[1:])
 ky, root, gui, geometry, ml = (p.resolve() for p in (ky, root, gui, geometry, ml))
-env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", QT_FORCE_STDERR_LOGGING="1")
 def run(args, success=True, cwd=root):
     r = subprocess.run([str(ky), *map(str,args)], cwd=cwd, env=env, capture_output=True, text=True, timeout=30)
-    assert (r.returncode == 0) == success, (args, r.stdout, r.stderr)
+    assert (r.returncode == 0) == success, (args, r.returncode, hex(r.returncode & 0xffffffff), r.stdout, r.stderr)
     return r
 assert "[9, 11]" in run(["--native-library",ml,"run",root/"examples/native/apps/regression.ky"]).stdout
 assert "1" in run(["--native-library",geometry,"run",root/"examples/native/apps/hull.ky"]).stdout
