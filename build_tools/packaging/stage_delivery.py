@@ -6,6 +6,22 @@ from portable_runtime import stage
 def run(*args, env=None):
     subprocess.run([str(x) for x in args], check=True, env=env)
 
+def isolated_environment(runtime_bins, environment=None, windows=None):
+    """Keep build tools available while preventing SDK runtime lookup fallbacks."""
+    result=dict(os.environ if environment is None else environment)
+    for key in ('DYLD_LIBRARY_PATH','DYLD_FRAMEWORK_PATH','LD_LIBRARY_PATH',
+                'QML2_IMPORT_PATH','QT_ROOT_DIR','CMAKE_PREFIX_PATH'):
+        result.pop(key,None)
+    result.update(QT_QPA_PLATFORM='offscreen',QT_PLUGIN_PATH='/nonexistent',QML_IMPORT_PATH='/nonexistent')
+    is_windows = os.name=='nt' if windows is None else windows
+    if is_windows:
+        # Windows searches PATH for DLLs. Retain compiler/CMake directories,
+        # but remove the original Qt, vcpkg and unrelocated application bins.
+        normalize=lambda path: str(path).replace('\\','/').rstrip('/').lower()
+        excluded={normalize(path) for path in runtime_bins}
+        result['PATH']=';'.join(path for path in result.get('PATH','').split(';') if normalize(path) not in excluded)
+    return result
+
 def notices(root, build, destination):
     licenses = destination / 'licenses'
     licenses.mkdir(exist_ok=True)
@@ -51,14 +67,13 @@ def main():
     notices(root,build,cli)
     # Relocation is verified in a second directory with SDK environment variables removed.
     moved=output/'relocated-cli'; shutil.copytree(cli,moved)
-    environment=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_PLUGIN_PATH='/nonexistent',QML_IMPORT_PATH='/nonexistent')
-    for key in ('DYLD_LIBRARY_PATH','DYLD_FRAMEWORK_PATH','LD_LIBRARY_PATH'): environment.pop(key,None)
+    qtroot=pathlib.Path(os.environ.get('QT_ROOT_DIR',''))
+    environment=isolated_environment(searches+[qtroot/'bin',build/'bin',build/'bin/Release',build/'native',build/'native/Release'])
     ky=moved/'bin'/('ky'+suffix)
     run(ky,'--version',env=environment)
     run(sys.executable,root/'tests/tooling/verify_installed_cli.py',ky,root,env=environment)
     libraries=[]
     if args.native:
-        qtroot=pathlib.Path(os.environ.get('QT_ROOT_DIR',''))
         qtpaths=next((p for name in ('qtpaths','qtpaths6','qtpaths.exe','qtpaths6.exe') if (p:=qtroot/'bin'/name).is_file()),None)
         if not qtpaths:
             executable=shutil.which('qtpaths6') or shutil.which('qtpaths')

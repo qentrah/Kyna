@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Run real native adapters, checked wrappers, rejected conversions, and install/build smoke tests."""
-import hashlib, os, pathlib, subprocess, sys, tempfile
+import hashlib, os, pathlib, shutil, subprocess, sys, tempfile
 ky, root, gui, geometry, ml = map(pathlib.Path, sys.argv[1:])
 ky, root, gui, geometry, ml = (p.resolve() for p in (ky, root, gui, geometry, ml))
 env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", QT_FORCE_STDERR_LOGGING="1")
@@ -90,6 +90,25 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
     target=host+("-arm64" if platform.machine().lower() in ("arm64","aarch64") else "-x86_64")
     import tarfile
     portable = (ml.parent / "runtime-inventory.json").is_file()
+    # Raw build DLLs can depend on sibling Armadillo/BLAS libraries. Install a
+    # complete relocated ML archive on every platform, including the raw-build
+    # CTest run; the relocated release run already supplies its closure.
+    if not portable:
+        sys.path.insert(0,str(root/'build_tools/packaging'))
+        from portable_runtime import stage
+        staged=project/'portable-ml';staged.mkdir()
+        original=ml
+        ml=staged/original.name;shutil.copy2(original,ml)
+        stage(staged,[pathlib.Path(ml.name)],[original.parent])
+        portable=True
+    # Single-file installation remains covered by a self-contained authored
+    # binding, rather than an ML adapter with undeclared external dependencies.
+    legacy=project/'single-file-project';legacy.mkdir()
+    fixture_sha=hashlib.sha256(authored_library.read_bytes()).hexdigest()
+    (legacy/'kyna.toml').write_text(f'[project]\nentry = "main.ky"\n[dependencies.fixture.native]\nversion = "1.0.16"\ntarget = "{target}"\nabi = 2\npath = "{authored_library.as_posix()}"\nsha256 = "{fixture_sha}"\n')
+    (legacy/'main.ky').write_text('var r=createTestResource(); console.log(readTestResource(r));')
+    run(['install'],cwd=legacy);run(['install','--locked'],cwd=legacy)
+    assert run(['run','main.ky'],cwd=legacy).stdout.strip()=='42'
     def add_runtime(tar):
         if portable:
             for file in sorted(ml.parent.rglob('*')):

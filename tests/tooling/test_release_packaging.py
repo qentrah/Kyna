@@ -4,13 +4,24 @@ import hashlib, io, json, os, pathlib, subprocess, sys, tarfile, tempfile, unitt
 from unittest.mock import patch
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'build_tools/packaging'))
-import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
+import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release, stage_delivery
 
 def release_fixture(root):
     (root/'kyna-test.tar.gz').write_bytes(b'archive')
     (root/'SHA256SUMS').write_text(hashlib.sha256(b'archive').hexdigest()+'  kyna-test.tar.gz\n')
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_relocated_windows_apps_cannot_find_original_sdk_dlls(self):
+        original={'PATH':r'C:\Qt\bin;C:\Compiler\bin;D:\build\vcpkg\bin;C:\Windows\System32',
+                  'QT_ROOT_DIR':'C:/Qt','QML2_IMPORT_PATH':'C:/Qt/qml',
+                  'LD_LIBRARY_PATH':'D:/build','CMAKE_PREFIX_PATH':'C:/Qt'}
+        isolated=stage_delivery.isolated_environment(['c:/QT/bin/','D:/build/vcpkg/bin'],original,windows=True)
+        self.assertEqual(isolated['PATH'],r'C:\Compiler\bin;C:\Windows\System32')
+        self.assertEqual(isolated['QML_IMPORT_PATH'],'/nonexistent')
+        for key in ('QT_ROOT_DIR','QML2_IMPORT_PATH','LD_LIBRARY_PATH','CMAKE_PREFIX_PATH'):
+            self.assertNotIn(key,isolated)
+        self.assertIn('QT_ROOT_DIR',original)
+
     def test_release_checksum_manifest_rejects_modified_or_uncovered_assets(self):
         cases={
             'modified':('0'*64+'  kyna-test.tar.gz\n','checksum mismatch'),
