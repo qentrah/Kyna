@@ -54,14 +54,16 @@ remaining approved plan. It is not a release-completion claim.
    Git and native lock writes roll back together on reported installation failure;
    crash recovery and concurrent installers remain unsupported.
 5. Qt Quick GUI, CGAL 2D/mesh inspection, and mlpack regression adapters execute
-   real applications. Desktop smoke has passed on macOS ARM64 offscreen. Android
+   real applications. Desktop optional-library CTests passed on hosted macOS and
+   Linux, with local macOS ARM64 offscreen smoke. Android
    shell passed an actual Android 14 ARM64 emulator installation, launch, timer,
    background/foreground lifecycle, GC, and shutdown smoke. Physical devices and
    other Android versions remain unverified.
 6. Direct C++ regression parity and repeated conversion/dispatch measurements
    are recorded. Dependency/license inventory and desktop/Android CI are added;
-   clean hosted-runner platform validation and broader geometry/GUI benchmarks
-   remain pending.
+   fixed geometry/GUI workloads verify equivalent C++ results and record repeated
+   timing/RSS. Windows optional-library CI and the dedicated physical ARM64
+   application CI gate remain unverified.
 7. Produce native application release archives/checksums and verify Bash,
    PowerShell, VSIX, and npm together against a chosen release tag. npm publication
    remains with the owner's account.
@@ -187,7 +189,8 @@ path and invokes its typed resource exports from Kyna.
 
 Hosted optional-package CTests passed on macOS 14 and Linux at the earlier
 `ed6f234` checkpoint. Windows optional dependencies and hosted Android software
-emulation are still pending. Final callback regressions now preserve originating
+emulation were pending at that checkpoint (the hosted emulator later failed
+HVF initialization). Final callback regressions now preserve originating
 files/lines and stack frames across C ABI 2 for VM and imported tree-walk
 callbacks. Tree-walk language throws retain their language error code rather than
 being classified as a C++ implementation exception. Regression-oracle assertions
