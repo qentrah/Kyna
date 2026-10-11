@@ -6,7 +6,38 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
 
+def release_fixture(root):
+    (root/'kyna-test.tar.gz').write_bytes(b'archive')
+    (root/'SHA256SUMS').write_text(hashlib.sha256(b'archive').hexdigest()+'  kyna-test.tar.gz\n')
+
 class ReleasePackagingTests(unittest.TestCase):
+    def test_release_checksum_manifest_rejects_modified_or_uncovered_assets(self):
+        cases={
+            'modified':('0'*64+'  kyna-test.tar.gz\n','checksum mismatch'),
+            'missing':('','missing checksums'),
+            'duplicate':((hashlib.sha256(b'archive').hexdigest()+'  kyna-test.tar.gz\n')*2,'Duplicate'),
+            'unstaged':(hashlib.sha256(b'archive').hexdigest()+'  absent.zip\n','unstaged'),
+            'escape':(hashlib.sha256(b'archive').hexdigest()+'  ../outside.zip\n','Malformed'),
+            'malformed':('checksums','Malformed'),
+        }
+        for name,(manifest,message) in cases.items():
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as temporary:
+                root=pathlib.Path(temporary);release_fixture(root)
+                (root/'SHA256SUMS').write_text(manifest)
+                with patch.object(publish_release.subprocess,'run') as run:
+                    with self.assertRaisesRegex(RuntimeError,message):
+                        publish_release.publish('owner/repo','v1.0.16',root)
+                    run.assert_not_called()
+
+    def test_release_rejects_added_payload_without_checksum(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);release_fixture(root)
+            (root/'unlisted.apk').write_bytes(b'new')
+            with patch.object(publish_release.subprocess,'run') as run:
+                with self.assertRaisesRegex(RuntimeError,'missing checksums: unlisted.apk'):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                run.assert_not_called()
+
     def test_windows_app_local_dependency_is_inventoried_without_self_copy(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=pathlib.Path(temporary);(root/'bin').mkdir()
@@ -43,7 +74,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_nested_release_artifacts_are_rejected_before_upload(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             nested=root/'build-android';nested.mkdir();(nested/'smoke.apk').write_bytes(b'apk')
             with patch.object(publish_release.subprocess,'run') as run:
                 with self.assertRaisesRegex(RuntimeError,'flat directory'):
@@ -60,7 +91,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_prepared_draft_receives_assets_before_publication(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums');(root/'kyna-test.tar.gz').write_bytes(b'archive')
+            root=pathlib.Path(temporary);release_fixture(root);(root/'kyna-test.tar.gz').write_bytes(b'archive')
             view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
             with patch.object(publish_release.subprocess,'run',return_value=view) as run:
                 publish_release.publish('owner/repo','v1.0.16',root)
@@ -71,7 +102,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_published_release_is_never_replaced(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             view=subprocess.CompletedProcess([],0,stdout='{"isDraft":false}')
             with patch.object(publish_release.subprocess,'run',return_value=view) as run:
                 with self.assertRaisesRegex(RuntimeError,'already published'):
@@ -80,7 +111,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_failed_upload_keeps_release_draft(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
             failure=subprocess.CalledProcessError(1,['gh','release','upload'])
             with patch.object(publish_release.subprocess,'run',side_effect=[view,failure]) as run:
@@ -90,7 +121,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_untagged_draft_cannot_be_published(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
             uploaded=subprocess.CompletedProcess([],0)
             missing_tag=subprocess.CalledProcessError(1,['gh','api'])
@@ -101,7 +132,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_draft_cannot_publish_unverified_existing_assets(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true,"assets":[{"name":"old-unsigned.zip"}]}')
             with patch.object(publish_release.subprocess,'run',return_value=view) as run:
                 with self.assertRaisesRegex(RuntimeError,'outside the verified delivery'):
@@ -110,7 +141,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
     def test_new_prerelease_requires_a_pushed_tag(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            root=pathlib.Path(temporary);release_fixture(root)
             view=subprocess.CompletedProcess([],1,stdout='')
             with patch.object(publish_release.subprocess,'run',return_value=view) as run:
                 publish_release.publish('owner/repo','v1.0.16-rc.1',root)

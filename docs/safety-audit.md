@@ -6,7 +6,7 @@ code backend. Each behavior below has executable regression coverage.
 | Area | Verification and result |
 | --- | --- |
 | Import contracts | `verify_type_contracts.py`: checked named/namespace/aliased contracts, private dependency retention without namespace exposure, local/member alias resolution, nested object and generic-nullability compatibility, visibility, type-only erasure, generic arguments, nullability, callback incompatibility, duplicates and cold/warm on-disk dependency changes and compiler/checker build fingerprint invalidation and forged dependency-sidecar rejection |
-| Type ownership | Immutable intern pools retain stable pointers and release their allocations at shutdown; duplicate and exception candidates are owned, with destructor-count regression coverage. Signature interning preserves receiver identity instead of merging distinct method signatures. Linux LeakSanitizer exposed the former raw-pointer pool leaks; the focused hosted type-family leak check now passes ([run](https://github.com/qentrah/Kyna/actions/runs/38108365096)). The full Linux sanitizer retry remains pending. |
+| Type ownership | Immutable intern pools retain stable pointers and release their allocations at shutdown; duplicate and exception candidates are owned, with destructor-count regression coverage. Signature interning preserves receiver identity instead of merging distinct method signatures. Linux LeakSanitizer exposed the former raw-pointer pool leaks; the focused hosted type-family leak check now passes ([run](https://github.com/qentrah/Kyna/actions/runs/38108365096)). The full Linux suite passes 57/57 Release, Debug and ASan/UBSan tests with leak detection enabled ([run](https://github.com/qentrah/Kyna/actions/runs/38109134996)). |
 | Integer boundaries | `test_numeric_parity.cpp`: checked overflow, signed minimum literal, division/remainder edge cases and unary underflow |
 | Numeric comparison | Exact int/int and mixed int/float equality and ordering, including adjacent integers above 2^53 and both 2^63 boundaries; shared comparison implementation avoids rounding integer operands |
 | Control flow | Duplicate/default ordering codes, constant compatible cases, adjacent large switch cases, nested labeled loops, switch break/continue targets and function boundaries |
@@ -20,7 +20,7 @@ New stable codes include `KSYN1301`, `KSYN1302`, `KSEM1308`, `KSEM1309`,
 
 The current local Debug and Release suites each pass all 57 CTests. The relocated native package
 fixture passes GUI callbacks, geometry, regression, checked imports, installation
-and `ky build`. The current source also passes all 57 sanitizer tests and all 59 optional-package
+and `ky build`. The current source also passes all 57 sanitizer tests and all 62 optional-package
 tests. LeakSanitizer is unavailable in the current macOS setup.
 
 Hosted CI at `17bee83` passed core Linux/Windows builds and Android cross-compilation.
@@ -67,3 +67,15 @@ verification of this fix is pending. Rams quick_review with via=rules was
 requested after the edit and again reported exhausted workspace credits.
 Windows app-local dependencies are inventoried without copying a file over
 itself; copy failures retain both source and destination paths.
+
+Rejected timer durations are checked before Qt starts and report `KNATIVE1003`,
+even when no usable platform plugin exists. Canvas points are validated before
+resource allocation, and partially constructed QML objects have scoped ownership.
+The Windows diagnostic probe persists its last Kyna statement to a file, so a
+crash cannot erase its checkpoint through buffered program output.
+
+The publisher rehashes every release asset before any GitHub request, rejects
+malformed/duplicate/escaping entries and requires exact manifest coverage.
+All 27 release-packaging tests pass, including six checksum rejection subcases.
+Windows core CI at `835ca2d` passes all 57 CTests and portable CLI/installer
+verification ([run](https://github.com/qentrah/Kyna/actions/runs/38111562875)).

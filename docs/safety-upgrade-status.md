@@ -36,7 +36,7 @@ retain these payloads; npm consumes the same release archives and SHA256SUMS.
 ## Verification and evidence
 
 - Fresh local Release: all 57 CTests passed, including release-gate rejection tests.
-- Fresh optional-library configuration: all 59 CTests passed.
+- Fresh optional-library configuration: all 62 CTests passed, including Qt host lifetime/thread contracts.
 - Fresh Address/Undefined Behavior sanitizer configuration: all 57 CTests passed
   after the final compiler/cache changes. LeakSanitizer is unavailable on this macOS host.
 - Thirteen focused extension tests, six npm installer tests, architecture and
@@ -53,9 +53,9 @@ retain these payloads; npm consumes the same release archives and SHA256SUMS.
 Final compiler checkpoint `607fb61` passes full Linux Release, Debug and
 ASan/UBSan CI with LeakSanitizer enabled, and macOS core portable CI. Native
 application/relocation checks at `9d870a8` pass Linux x86_64/ARM64 and macOS
-x86_64/ARM64. Windows core tests pass, but OS dependency recursion blocked
-packaging; the scanner now excludes OS DLL recursion while retaining MSVC
-redistributables. Windows GUI still faults under both offscreen and native
+x86_64/ARM64. Windows core tests and portable installation now pass at `835ca2d`
+([run](https://github.com/qentrah/Kyna/actions/runs/38111562875)); the scanner excludes
+OS DLL recursion while retaining MSVC redistributables and avoids app-local self-copy. Windows GUI still faults under both offscreen and native
 backends; exception-stack diagnosis is running. Final Windows packaging and
 application retries are required. Android uploads are flat, and the hosted
 `9d870a8` APK passes the refreshed local emulator lifecycle recording.
@@ -84,5 +84,9 @@ is based on simultaneous builds or comparisons between Debug and Release.
 Generated Debug/sanitizer builds, redundant Qt/NDK downloads and duplicate
 staging directories were removed for recording space. Verification logs,
 release candidates and their verified corresponding Qt source archives remain.
-Emulator images use sparse restoration. Project source and lockfiles were
+Emulator images are restored only when needed for application verification. Project source and lockfiles were
 preserved during authorized cleanup.
+
+Release publication validates every staged SHA-256 before querying or uploading
+to GitHub. Modified, duplicate, unlisted, escaping and incomplete manifest entries
+are rejected; all 27 release-packaging tests pass locally.

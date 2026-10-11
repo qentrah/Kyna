@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """Publish verified CI assets, including a release that was prepared as a draft."""
-import argparse,json,pathlib,subprocess
+import argparse,json,pathlib,re,subprocess
+from portable_runtime import digest
+
+
+def verify_assets(assets, files):
+    expected={file.name for file in files if file.name!='SHA256SUMS'}
+    if not expected:raise RuntimeError('Release has no payload assets')
+    checked=set()
+    for line in (assets/'SHA256SUMS').read_text().splitlines():
+        entry=re.fullmatch(r'([0-9a-fA-F]{64}) [ *]([^/\\\r\n]+)',line)
+        if not entry:raise RuntimeError('Malformed release checksum entry')
+        checksum,name=entry.groups()
+        if name in checked:raise RuntimeError('Duplicate release checksum: '+name)
+        if name not in expected:raise RuntimeError('Checksum names an unstaged release asset: '+name)
+        if digest(assets/name)!=checksum.lower():raise RuntimeError('Release asset checksum mismatch: '+name)
+        checked.add(name)
+    if checked!=expected:raise RuntimeError('Release assets missing checksums: '+', '.join(sorted(expected-checked)))
 
 
 def publish(repository, tag, assets):
@@ -9,6 +25,7 @@ def publish(repository, tag, assets):
         raise RuntimeError('Release assets must be a nonempty flat directory of regular files')
     if not (assets/'SHA256SUMS').is_file():
         raise RuntimeError('Release checksums are missing')
+    verify_assets(assets,files)
     view=subprocess.run(['gh','release','view',tag,'--repo',repository,'--json','isDraft,assets'],capture_output=True,text=True)
     prerelease='-' in tag
     if view.returncode == 0:
