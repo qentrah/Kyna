@@ -60,3 +60,7 @@ ELF dependencies are copied as regular files under their loader SONAME, preservi
 versioned lookup names without archive symlinks. Regression tests cover these
 hosted macOS/Linux ARM64 failures. Dependency binary caches are saved even when
 subsequent packaging fails.
+
+Windows dependency scans exclude virtual `api-ms-*` and `ext-ms-*` API-set names,
+which the OS loader supplies. Missing real DLLs still fail staging. Scanner errors
+preserve the underlying tool diagnostic to make CI failures actionable.

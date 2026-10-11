@@ -3,7 +3,10 @@
 import argparse, hashlib, json, os, pathlib, re, shutil, subprocess, sys, tempfile
 
 def run(*arguments):
-    return subprocess.check_output([str(x) for x in arguments], text=True, stderr=subprocess.STDOUT)
+    try:
+        return subprocess.check_output([str(x) for x in arguments], text=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(str(arguments[0]) + ' failed:\n' + (error.output or '')[-12000:]) from error
 
 def digest(path):
     with path.open('rb') as stream:
@@ -76,6 +79,9 @@ def cmake_dependencies(seeds, searches):
     with tempfile.TemporaryDirectory(prefix='kyna-dependency-scan-') as directory:
         output = pathlib.Path(directory) / 'dependencies.txt'
         script += 'file(GET_RUNTIME_DEPENDENCIES RESOLVED_DEPENDENCIES_VAR found UNRESOLVED_DEPENDENCIES_VAR missing CONFLICTING_DEPENDENCIES_PREFIX conflicts\n'
+        if sys.platform == 'win32':
+            # API-set names are OS loader contracts, not redistributable DLL files.
+            script += 'PRE_EXCLUDE_REGEXES "[Aa][Pp][Ii]-[Mm][Ss]-.*" "[Ee][Xx][Tt]-[Mm][Ss]-.*"\n'
         executables = [p for p in seeds if p.suffix.lower() == '.exe' or p.name in ('ky', 'kyna')]
         libraries = [p for p in seeds if p not in executables]
         if executables: script += 'EXECUTABLES ' + ' '.join(map(quote, executables)) + '\n'

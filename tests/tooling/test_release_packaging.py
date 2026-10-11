@@ -7,6 +7,12 @@ sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_dependency_tool_failure_preserves_diagnostic(self):
+        failure=subprocess.CalledProcessError(1,['cmake'],output='unresolved dependency: required.dll')
+        with patch.object(portable_runtime.subprocess,'check_output',side_effect=failure):
+            with self.assertRaisesRegex(RuntimeError,'unresolved dependency: required.dll'):
+                portable_runtime.run('cmake','-P','scan.cmake')
+
     def test_elf_dependency_preserves_loader_soname(self):
         with patch.object(portable_runtime.sys,'platform','linux'),patch.object(portable_runtime,'run',return_value='libarmadillo.so.15\n'):
             self.assertEqual(portable_runtime.dependency_filename(pathlib.Path('/sdk/libarmadillo.so.15.2.3')),'libarmadillo.so.15')
