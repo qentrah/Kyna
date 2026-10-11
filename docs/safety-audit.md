@@ -54,6 +54,6 @@ and relocation pass Linux x86_64/ARM64 and macOS ARM64; the Windows suite passes
 58/59, with a GUI access violation. The native Windows platform retry at `9d870a8`
 also crashes, so the backend selection did not resolve the defect. A bounded
 Windows child-process probe captures exception modules and symbolized stacks;
-Windows application support remains gated. Android's hosted APK at `6971895`
+Windows application support remains gated. Android's hosted APK at `9d870a8`
 passes the refreshed local emulator lifecycle recording. Android release assets
 now share one directory, avoiding nested paths in merged release artifacts.

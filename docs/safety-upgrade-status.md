@@ -58,7 +58,7 @@ packaging; the scanner now excludes OS DLL recursion while retaining MSVC
 redistributables. Windows GUI still faults under both offscreen and native
 backends; exception-stack diagnosis is running. Final Windows packaging and
 application retries are required. Android uploads are flat, and the hosted
-`6971895` APK passes the refreshed local emulator lifecycle recording.
+`9d870a8` APK passes the refreshed local emulator lifecycle recording.
 
 ## Remaining release gates
 
