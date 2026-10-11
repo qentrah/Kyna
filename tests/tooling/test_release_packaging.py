@@ -14,7 +14,8 @@ class ReleasePackagingTests(unittest.TestCase):
             with patch.object(publish_release.subprocess,'run',return_value=view) as run:
                 publish_release.publish('owner/repo','v1.0.16',root)
             commands=[call.args[0] for call in run.call_args_list]
-            self.assertEqual([command[2] for command in commands],['view','upload','edit'])
+            self.assertEqual([command[2] for command in (commands[0],commands[1],commands[3])],['view','upload','edit'])
+            self.assertEqual(commands[2],['gh','api','repos/owner/repo/git/ref/tags/v1.0.16'])
             self.assertIn('--draft=false',commands[-1]);self.assertIn('--prerelease=false',commands[-1])
 
     def test_published_release_is_never_replaced(self):
@@ -35,6 +36,17 @@ class ReleasePackagingTests(unittest.TestCase):
                 with self.assertRaises(subprocess.CalledProcessError):
                     publish_release.publish('owner/repo','v1.0.16',root)
                 self.assertEqual(run.call_count,2)
+
+    def test_untagged_draft_cannot_be_published(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
+            uploaded=subprocess.CompletedProcess([],0)
+            missing_tag=subprocess.CalledProcessError(1,['gh','api'])
+            with patch.object(publish_release.subprocess,'run',side_effect=[view,uploaded,missing_tag]) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                self.assertEqual(run.call_count,3)
 
     def test_draft_cannot_publish_unverified_existing_assets(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -19,6 +19,8 @@ def publish(repository, tag, assets):
         if any(asset['name'] not in expected for asset in existing.get('assets',[])):
             raise RuntimeError('Draft contains assets outside the verified delivery')
         subprocess.run(['gh','release','upload',tag,*map(str,files),'--repo',repository,'--clobber'],check=True)
+        # Prepared drafts may be untagged. Verify the pushed tag immediately before publication.
+        subprocess.run(['gh','api',f'repos/{repository}/git/ref/tags/{tag}'],check=True,stdout=subprocess.DEVNULL)
         subprocess.run(['gh','release','edit',tag,'--repo',repository,'--draft=false','--prerelease='+str(prerelease).lower()],check=True)
     else:
         # Creation itself verifies the pushed tag; a transient lookup failure cannot replace a release.

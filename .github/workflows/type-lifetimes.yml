@@ -1,0 +1,32 @@
+name: Type lifetime leak check
+on:
+  pull_request:
+    paths: ['compiler/kyna_types/**', 'tests/types/**', '.github/workflows/type-lifetimes.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  type-lifetimes:
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite
+      ASAN_OPTIONS: detect_leaks=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/cache/restore@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: lifetime-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            core-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+            native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.json
+      - name: Build the instrumented type hierarchy
+        run: |
+          cmake -S . -B build-lifetimes -DCMAKE_BUILD_TYPE=Debug -DKYNA_ENABLE_SANITIZERS=ON -DKYNA_FETCH_DEPENDENCIES=OFF -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build-lifetimes --target kyna_types_tests --parallel 3
+      - name: Check every interned type family and shutdown ownership
+        run: ctest --test-dir build-lifetimes -R '^kyna_types_tests$' --output-on-failure
