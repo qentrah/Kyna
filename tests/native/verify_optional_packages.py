@@ -57,6 +57,12 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
         result = run(["--native-library", gui, "run", source('var f: any = guiWindow; f("Invalid", '+dimensions+');')], False)
         assert "KNATIVE1003" in result.stderr and "positive 32-bit" in result.stderr
     # Callback contracts must also hold when static typing is explicitly bypassed.
+    # Invalid durations fail before Qt starts, including on a host without a
+    # usable platform plugin. This must be a structured failure, not a Qt abort.
+    for duration in ('-1', '2147483648'):
+        invalid=source('fn callback(): void {} guiAfter('+duration+',callback);')
+        rejected=subprocess.run([str(ky),'--native-library',str(gui),'run',str(invalid)],env={**env,'QT_QPA_PLATFORM':'kyna-invalid-platform'},capture_output=True,text=True,timeout=30)
+        assert rejected.returncode==1 and 'KNATIVE1003' in rejected.stderr and 'timer duration is out of range' in rejected.stderr, rejected
     for code, expected in [
         ('fn wrong(value: int): void {} var callback: any = wrong; guiAfter(1,callback);', 'KNATIVE1003'),
         ('fn wrong(): int { return 1; } var callback: any = wrong; guiAfter(1,callback); guiRun();', 'KNATIVE1004'),

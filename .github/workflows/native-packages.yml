@@ -106,12 +106,15 @@ jobs:
           source = Path('examples/native/apps/gui_smoke.ky').read_text()
           statements = []
           for index, line in enumerate(source.splitlines()):
-              statements.append('console.error("GUI_PHASE '+str(index)+'");')
+              statements.append('writeFile("build-native/gui-phase.txt", "GUI_PHASE '+str(index)+'");')
               statements.append(line)
-          statements.append('console.error("GUI_PHASE completed");')
+          statements.append('writeFile("build-native/gui-phase.txt", "GUI_PHASE completed");')
           Path('build-native/gui-diagnostic.ky').write_text('\n'.join(statements))
           '@ | python
           build-native/bin/Release/kyna_windows_process_probe.exe build-native/bin/Release/ky.exe --native-library build-native/native/Release/kyna_gui.dll run build-native/gui-diagnostic.ky
+          $probeExit = $LASTEXITCODE
+          if (Test-Path build-native/gui-phase.txt) { Get-Content build-native/gui-phase.txt }
+          exit $probeExit
       - run: ctest --test-dir build-native -C Release --output-on-failure
       - name: Relocate and test native application packages
         run: python3 build_tools/packaging/stage_delivery.py --build build-native --output portable-delivery --native
