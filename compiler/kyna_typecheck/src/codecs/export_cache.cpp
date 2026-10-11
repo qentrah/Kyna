@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -29,9 +30,30 @@ std::string stampLine(const std::filesystem::path &path) {
 } // namespace
 
 std::filesystem::path cachePath(const std::filesystem::path &modulePath) {
-  auto path = modulePath;
-  path += ".kyc";
-  return path;
+  // Dependencies cannot supply checked contracts through source-tree sidecars.
+  // The directory override is a trusted caller/test setting, never package metadata.
+  std::filesystem::path directory;
+  if (const char *overridePath = std::getenv("KYNA_EXPORT_CACHE_DIR")) {
+    directory = overridePath;
+  } else {
+#ifdef _WIN32
+    if (const char *local = std::getenv("LOCALAPPDATA")) directory = std::filesystem::path(local) / "Kyna/Cache/exports";
+#elif defined(__APPLE__)
+    if (const char *home = std::getenv("HOME")) directory = std::filesystem::path(home) / "Library/Caches/Kyna/exports";
+#else
+    if (const char *xdg = std::getenv("XDG_CACHE_HOME")) directory = std::filesystem::path(xdg) / "kyna/exports";
+    else if (const char *home = std::getenv("HOME")) directory = std::filesystem::path(home) / ".cache/kyna/exports";
+#endif
+  }
+  if (directory.empty() || !directory.is_absolute()) return {};
+  std::error_code pathError;
+  const auto canonical = std::filesystem::weakly_canonical(modulePath, pathError);
+  if (pathError) return {};
+  std::ostringstream key;
+  // This is only a bucket identifier: exact paths and source bytes validate hits.
+  key << canonical.filename().string() << '.' << std::hex
+      << std::hash<std::string>{}(canonical.generic_string()) << ".kyc";
+  return directory / key.str();
 }
 
 bool enabled() {
@@ -68,8 +90,11 @@ bool stampMatches(const std::vector<std::filesystem::path> &sources,
 
 void writeStamp(const std::vector<std::filesystem::path> &sources,
                 const std::filesystem::path &cacheFile) {
-  if (!enabled() || sources.empty())
+  if (!enabled() || sources.empty() || cacheFile.empty())
     return;
+  std::error_code directoryError;
+  std::filesystem::create_directories(cacheFile.parent_path(), directoryError);
+  if (directoryError) return;
   std::ofstream out(cacheFile, std::ios::trunc);
   if (!out)
     return;

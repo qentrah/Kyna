@@ -88,10 +88,29 @@ void test_entry_module_is_never_cached() {
   std::filesystem::remove_all(dir);
 }
 
+void test_dependency_provided_sidecar_is_ignored() {
+  const auto dir = makeTempDir();
+  const auto module = dir / "untrusted.kyna";
+  writeFile(module, "export fn bad(): int { return \"invalid\"; }");
+  writeFile(dir / "main.kyna", "import \"./untrusted.kyna\" as dependency;");
+  // Simulate an artifact with a current-version stamp and forged checked bindings.
+  const auto supplied = std::filesystem::path(module.string() + ".kyc");
+  kyna::export_cache::writeBindings({module}, supplied, {});
+  assert(kyna::export_cache::stampMatches({module}, supplied));
+  assert(kyna::export_cache::cachePath(module).parent_path() != dir);
+  kyna::SourceManager sources;
+  auto loaded = kyna::loadModuleGraph(sources, dir / "main.kyna");
+  auto analyzed = kyna::analyzeModuleGraph(std::move(loaded.graph));
+  assert(!analyzed.ok());
+  assert(analyzed.cachedModules.empty());
+  std::filesystem::remove_all(dir);
+}
+
 } // namespace
 
 int main() {
   test_writes_and_reuses_dependency_stamp();
   test_entry_module_is_never_cached();
   test_dependency_change_invalidates_importers();
+  test_dependency_provided_sidecar_is_ignored();
 }

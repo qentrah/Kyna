@@ -8,7 +8,7 @@
 
 namespace kyna::export_cache {
 
-// Sidecar next to a module path: `math.kyna` → `math.kyna.kyc`.
+// User-local cache bucket; dependency/source-tree sidecars are never trusted.
 std::filesystem::path cachePath(const std::filesystem::path &modulePath);
 
 // True when KYNA_DISABLE_EXPORT_CACHE is unset/empty.

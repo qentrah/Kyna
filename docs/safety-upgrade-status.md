@@ -8,7 +8,8 @@ Version 1.0.16 is prepared; no release tag or npm publication has been created.
 The existing C++ compiler, HIR/MIR/bytecode pipeline and VM remain in place.
 Checked module contracts preserve aliases, exported interfaces, generics, inferred
 bindings and type-only declarations. On-disk export caches include source and
-transitive dependency contracts plus the compiler/checker build fingerprint.
+transitive dependency contracts plus the compiler/checker build fingerprint. Contracts live in the user-local cache;
+dependency-provided sidecars are ignored.
 Explicit `any` remains an escape hatch; native calls still validate conversions.
 
 Integer arithmetic, signed boundaries, exact mixed numeric comparisons, switch

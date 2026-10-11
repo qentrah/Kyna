@@ -68,6 +68,8 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix='kyna-contracts-') as directory:
         root = Path(directory)
+        cache_root = root / "host-cache"
+        os.environ["KYNA_EXPORT_CACHE_DIR"] = str(cache_root)
         types = root / 't.ky'
         types.write_text('export type Count = int; export intf Person { name: str; } export intf Box<T> { value: T; } print("must not run");')
         library = root / 'library.ky'
@@ -76,8 +78,8 @@ def main():
         source = 'import { add as plus, count } from "./library.ky"; var x: int = plus(count);'
         for _ in range(2): check(source, name=entry)
         # Foreign compiler/checker cache versions are misses, never trusted contracts.
-        cache = Path(str(library) + '.kyc')
-        assert cache.is_file()
+        cache = next(cache_root.glob('library.ky.*.kyc'))
+        assert not Path(str(library) + '.kyc').exists()
         old_cache = cache.read_text()
         cache.write_text('KYC3-contracts-foreign-compiler\n' + old_cache.split('\n', 1)[1])
         check(source, name=entry)
