@@ -11,6 +11,10 @@ inventories after signing. Notarization must return `Accepted`; command success
 alone is insufficient. Release assembly waits for all five desktop native package
 checks and Android cross-compilation. ARM64 Android application support still
 requires its physical-host emulator smoke, separately from cross-compilation.
+Set `KYNA_ANDROID_RUNNER_ENABLED=true` only after provisioning that runner;
+stable publication fails when it is disabled and waits for its application smoke
+when enabled. Manual release rehearsals assemble an unsigned, unpublished
+`verified-release-candidate` bundle for review and do not enable publication.
 
 macOS executables permit explicitly trusted third-party native plug-ins through
 `disable-library-validation`, and Qt's QML runtime through `allow-jit`. These

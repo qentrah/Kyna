@@ -58,15 +58,10 @@ Qt setup and deployment references:
 [androiddeployqt](https://doc.qt.io/qt-6/android-deploy-qt-tool.html).
 
 
-The local cross-compilation toolchains were archived after verification to save
-space. Restore both generated directories before rebuilding this checkout:
-
-```bash
-tar -xf build-release/verification/android-ndk-26.1.tar.gz
-tar -xf build-release/verification/android-qt-6.7.3.tar.gz
-```
-
-These archives are local verification backups, not release distributions.
+The generated local cross-compilation SDK/NDK/Qt downloads were removed after
+verification to recover disk space. Reinstall the matching versions above before
+a local cross-build, or use the reproducible hosted Android build workflow. The
+disposable ARM64 emulator and its verified application recordings are retained.
 
 Hosted CI cross-compiles and uploads the ARM64 APK. GitHub's macOS VM failed
 `HVF` initialization even with software emulation requested, so application
@@ -76,6 +71,10 @@ Provision Python, JDK 17, the Android SDK and emulator, and at least 8 GiB free;
 then enable `android-emulator-smoke` when dispatching Optional native packages.
 That job installs the build artifact and requires the lifecycle/callback/shutdown
 marker. A hosted build passing without this gate is compilation evidence only.
+Stable release tags request this same application gate when
+`KYNA_ANDROID_RUNNER_ENABLED=true`. Stable publication rejects an unset/false
+variable and waits for the reusable native workflow, including the application
+smoke, to succeed. Enable it only after provisioning the labelled runner.
 
 Release preparation names the signed demo `kyna-android-arm64-smoke.apk` and
 uploads that single APK rather than intermediate unsigned build directories.

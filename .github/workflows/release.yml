@@ -149,6 +149,8 @@ jobs:
   native:
     name: Verify and package optional libraries
     uses: ./.github/workflows/native-packages.yml
+    with:
+      android-emulator-smoke: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && vars.KYNA_ANDROID_RUNNER_ENABLED == 'true' }}
     secrets: inherit
 
   candidate:
@@ -219,7 +221,10 @@ jobs:
         if: ${{ !contains(github.ref_name, '-') }}
         env:
           SIGNED_RELEASE_ENABLED: ${{ vars.KYNA_SIGNED_RELEASE_ENABLED }}
-        run: test "$SIGNED_RELEASE_ENABLED" = true
+          ANDROID_RUNNER_ENABLED: ${{ vars.KYNA_ANDROID_RUNNER_ENABLED }}
+        run: |
+          test "$SIGNED_RELEASE_ENABLED" = true
+          test "$ANDROID_RUNNER_ENABLED" = true
       - uses: actions/checkout@v7
       - name: Verify the release version
         shell: bash

@@ -1,6 +1,13 @@
 name: Optional native packages
 on:
   workflow_call:
+    inputs:
+      desktop-target:
+        type: string
+        default: all
+      android-emulator-smoke:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       desktop-target:
@@ -217,7 +224,7 @@ jobs:
   # application gate runs only on an explicitly provisioned physical runner;
   # cross-compilation by itself never establishes Android target support.
   android-emulator-smoke:
-    if: github.event_name == 'workflow_dispatch' && inputs.android-emulator-smoke
+    if: inputs.android-emulator-smoke
     needs: android-arm64
     runs-on: [self-hosted, macOS, ARM64, kyna-android]
     timeout-minutes: 20
