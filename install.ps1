@@ -65,6 +65,14 @@ try {
         if (Test-Path "$dependencyDestination.previous") { $installedFiles.Add("bin/$($dependency.Name).previous") }
     }
     $packageRoot = $source.Directory.Parent
+    foreach ($directory in @("lib", "licenses")) {
+        $runtimeSource = Join-Path $packageRoot.FullName $directory
+        if (Test-Path $runtimeSource) {
+            $runtimeDestination = Join-Path $Prefix $directory
+            New-Item -ItemType Directory -Force -Path $runtimeDestination | Out-Null
+            Copy-Item (Join-Path $runtimeSource "*") $runtimeDestination -Recurse -Force
+        }
+    }
     $shareSource = Join-Path $packageRoot.FullName "share/kyna"
     $shareDestination = Join-Path $Prefix "share/kyna"
     New-Item -ItemType Directory -Force -Path $shareDestination | Out-Null

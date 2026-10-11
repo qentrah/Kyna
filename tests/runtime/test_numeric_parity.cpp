@@ -6,6 +6,7 @@
 #include <kyna/bytecode/program_bytecode_compiler.hpp>
 #include <kyna/parsing/recursive_descent_parser.hpp>
 #include <cassert>
+#include <limits>
 
 namespace {
 kyna::BytecodeExecutionResult vm(const std::string &source) {
@@ -33,6 +34,17 @@ void parity(const std::string &source, const kyna::Value &expected) {
 int main() {
   parity("fn count(seed: int) { var value = seed; fn next(): int { value = value + 1; return value; } return next; } const next = count(0); return next() - next();", kyna::Value(std::int64_t{-1}));
   parity("fn count(seed: int) { var value = seed; fn next(): int { value = value + 1; return value; } return next; } const next = count(0); var ignored = false && (next() > 0); return next();", kyna::Value(std::int64_t{1}));
+  parity("return 9007199254740993 == 9007199254740992;", kyna::Value(false));
+  parity("return 9007199254740993 == 9007199254740992.0;", kyna::Value(false));
+  parity("return 9007199254740993 > 9007199254740992.0;", kyna::Value(true));
+  parity("return 9223372036854775807 < 9223372036854775808.0;", kyna::Value(true));
+  parity("return -9223372036854775808;", kyna::Value(std::numeric_limits<std::int64_t>::min()));
+  parity("return -9223372036854775808 % -1;", kyna::Value(std::int64_t{0}));
+  parity("return -9223372036854775808 == -9223372036854775808.0;", kyna::Value(true));
+  parity("return -9223372036854775808 < -9223372036854775808.0;", kyna::Value(false));
+  parity("fn next(seed:int) { var n=seed; fn step():int {n=n+1;return n;} return step;} var step=next(0); fn pair(a:int,b:int):int{return a*10+b;} return pair(step(),step());", kyna::Value(std::int64_t{12}));
+  parity("fn flow():int {var n=0; outer: loop(var i=0;i<3;i=i+1){switch(i){case 0:{continue outer;} case 1:{n=n+10;break;} default:{break outer;}} n=n+1;} return n;} return flow();", kyna::Value(std::int64_t{11}));
+  parity("fn cases():int {switch(9007199254740993){case 9007199254740992:{return 1;} case 9007199254740993:{return 2;} default:{return 3;}}} return cases();", kyna::Value(std::int64_t{2}));
   parity("return 9 - 4;", kyna::Value(std::int64_t{5}));
   parity("return 9 * 4;", kyna::Value(std::int64_t{36}));
   parity("return 9 / 4;", kyna::Value(2.25));
@@ -40,7 +52,7 @@ int main() {
   parity("return 9007199254740993 > 9007199254740992;", kyna::Value(true));
   parity("return false && (1 / 0 > 0);", kyna::Value(false));
   parity("return true || (1 / 0 > 0);", kyna::Value(true));
-  for (const auto &source : {"return 9223372036854775807 + 1;", "return 9223372036854775807 * 2;"}) {
+  for (const auto &source : {"return 9223372036854775807 + 1;", "return 9223372036854775807 * 2;", "return -(-9223372036854775808);", "return -9223372036854775808 - 1;"}) {
     const auto compiled = vm(source);
     assert(!compiled.ok() && compiled.diagnostics.front().code == "KRT2204");
     kyna::Interpreter tree;

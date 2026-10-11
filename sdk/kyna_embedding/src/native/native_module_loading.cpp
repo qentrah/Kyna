@@ -14,7 +14,7 @@ namespace {
 struct Library {
 #if defined(_WIN32)
   HMODULE handle{};
-  explicit Library(const std::filesystem::path &path) : handle(LoadLibraryW(path.c_str())) {}
+  explicit Library(const std::filesystem::path &path) : handle(LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH)) {}
   ~Library() { if (handle) FreeLibrary(handle); }
   void *symbol(const char *name) { return reinterpret_cast<void *>(GetProcAddress(handle, name)); }
 #else

@@ -60,6 +60,10 @@ def stage_package(cli: pathlib.Path, repository: pathlib.Path, package: pathlib.
     if os.name == "nt":
         for dependency in cli.parent.glob("*.dll"):
             shutil.copy2(dependency, binary_directory / dependency.name)
+    for directory in ("lib/runtime", "licenses"):
+        source = cli.parent.parent / directory
+        if source.is_dir():
+            shutil.copytree(source, package / directory)
     share = package / "share" / "kyna"
     share.mkdir(parents=True)
     for filename in ("README.md", "LICENSE"):

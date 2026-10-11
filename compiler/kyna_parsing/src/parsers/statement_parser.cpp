@@ -16,7 +16,9 @@ StmtPtr Parser::block() {
     } else if (check(TokenKind::If) || check(TokenKind::While) || check(TokenKind::Loop) ||
                check(TokenKind::Switch) || check(TokenKind::Break) ||
                check(TokenKind::Continue) || check(TokenKind::Return) ||
-               check(TokenKind::Throw) || check(TokenKind::Try) || check(TokenKind::LeftBrace))
+               check(TokenKind::Throw) || check(TokenKind::Try) || check(TokenKind::LeftBrace) ||
+               (check(TokenKind::Identifier) && current + 1 < tokens.size() &&
+                tokens[current + 1].kind == TokenKind::Colon))
       b.statements.push_back(statement());
     else {
       auto e = expression();
@@ -123,11 +125,11 @@ StmtPtr Parser::statement() {
       SwitchCase c;
       if (match(TokenKind::Case)) {
         if (seenDefault)
-          throw KynaError({"case cannot follow the default arm", previous().location, false});
+          throw KynaError({"case cannot follow the default arm", previous().location, false, "KSYN1302"});
         c.value = expression();
       } else if (match(TokenKind::Default)) {
         if (seenDefault)
-          throw KynaError({"duplicate default arm in switch", previous().location, false});
+          throw KynaError({"duplicate default arm in switch", previous().location, false, "KSYN1301"});
         seenDefault = true;
         c.isDefault = true;
       } else {

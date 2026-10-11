@@ -7,7 +7,7 @@ on:
         type: boolean
         default: false
   pull_request:
-    paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', '.github/workflows/native-packages.yml']
+    paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', 'build_tools/packaging/**', 'tests/native/**', '.github/workflows/native-packages.yml']
 permissions:
   contents: read
 concurrency:
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Unix native build tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config
+        run: sudo apt-get update && sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config patchelf
       - name: Install macOS native build tools
         if: runner.os == 'macOS'
         run: brew install autoconf autoconf-archive automake libtool
@@ -50,10 +50,12 @@ jobs:
         run: cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DKYNA_WITH_GUI=ON -DKYNA_WITH_GEOMETRY=ON -DKYNA_WITH_ML=ON '-DVCPKG_MANIFEST_FEATURES=geometry;ml' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
       - run: cmake --build build-native --config Release --parallel 3
       - run: ctest --test-dir build-native -C Release --output-on-failure
+      - name: Relocate and test native application packages
+        run: python3 build_tools/packaging/stage_delivery.py --build build-native --output portable-delivery --native
       - uses: actions/upload-artifact@v6
         with:
           name: native-${{ matrix.os }}
-          path: build-native/native/**
+          path: portable-delivery/**
   android-arm64:
     runs-on: macos-14
     timeout-minutes: 60

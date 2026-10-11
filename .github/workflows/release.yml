@@ -35,6 +35,14 @@ jobs:
         run: cmake --build build --config Release --parallel
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Install ELF relocation tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: Stage and verify portable installation
+        run: python3 build_tools/packaging/stage_delivery.py --build build --output delivery
+      - name: Select verified payload
+        shell: bash
+        run: mv delivery/cli package
       - name: Sign macOS executables
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
         env:
@@ -48,7 +56,7 @@ jobs:
           security create-keychain -p kyna-signing build.keychain
           security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k kyna-signing build.keychain
-          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" build/bin/ky build/bin/kyna
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" package/bin/ky package/bin/kyna
       - name: Sign Windows executables
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'Windows'
         env:
@@ -58,9 +66,7 @@ jobs:
         run: |
           if (-not $env:CERTIFICATE_BASE64 -or -not $env:CERTIFICATE_PASSWORD) { throw "Windows signing secrets are required for stable releases." }
           [IO.File]::WriteAllBytes("signing.pfx", [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
-          & (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f signing.pfx /p $env:CERTIFICATE_PASSWORD build/bin/Release/ky.exe build/bin/Release/kyna.exe
-      - name: Stage installation
-        run: cmake --install build --config Release --prefix package
+          & (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f signing.pfx /p $env:CERTIFICATE_PASSWORD package/bin/ky.exe package/bin/kyna.exe
       - name: Create Unix archive
         if: matrix.archive == 'tar'
         shell: bash
@@ -188,7 +194,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: container-metadata
         with:
-          images: ghcr.io/up-to-code/kyna
+          images: ghcr.io/qentrah/kyna
           tags: |
             type=raw,value=${{ github.ref_name }}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}

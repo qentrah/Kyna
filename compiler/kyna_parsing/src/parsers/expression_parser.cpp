@@ -92,6 +92,11 @@ ExprPtr Parser::unary() {
   }
   if (match(TokenKind::Bang) || match(TokenKind::Minus)) {
     auto t = previous();
+    // The signed minimum has no representable positive intermediate operand.
+    if (t.kind == TokenKind::Minus && check(TokenKind::Int) && peek().lexeme == "9223372036854775808") {
+      match(TokenKind::Int);
+      return make(Literal{Literal::Kind::Int, "-9223372036854775808"}, t.location);
+    }
     return make(Unary{t.kind, unary()}, t.location);
   }
   return call();

@@ -34,6 +34,8 @@ def main():
             if file.is_file():
                 relative = file.relative_to(args.runtime_files).as_posix()
                 if relative in files:
+                    if file.resolve() == args.library.resolve():
+                        continue
                     parser.error('runtime file collides with adapter package: ' + relative)
                 files[relative] = file.read_bytes()
     metadata = dict(package=args.package, version=args.version, target=args.target,

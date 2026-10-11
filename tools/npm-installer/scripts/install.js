@@ -43,7 +43,8 @@ async function install() {
 
     fs.rmSync(vendor, { force: true, recursive: true });
     fs.mkdirSync(vendor, { recursive: true });
-    fs.cpSync(nativeBin, path.join(vendor, "bin"), { recursive: true });
+    // Retain relocated libraries, licenses, templates and documentation too.
+    fs.cpSync(extracted, vendor, { recursive: true });
     if (process.platform !== "win32") {
       fs.chmodSync(path.join(vendor, "bin", "ky"), 0o755);
     }

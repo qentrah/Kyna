@@ -1,4 +1,5 @@
 #include "kyna/execution/runtime_object_model.hpp"
+#include <kyna/execution/numeric_comparison.hpp>
 #include <set>
 #include <sstream>
 
@@ -116,13 +117,8 @@ bool Value::isTruthy() const {
 bool Value::equals(const Value &other) const {
   if ((std::holds_alternative<int64_t>(data) || std::holds_alternative<double>(data)) &&
       (std::holds_alternative<int64_t>(other.data) || std::holds_alternative<double>(other.data))) {
-    double left = std::holds_alternative<int64_t>(data)
-                      ? static_cast<double>(std::get<int64_t>(data))
-                      : std::get<double>(data);
-    double right = std::holds_alternative<int64_t>(other.data)
-                       ? static_cast<double>(std::get<int64_t>(other.data))
-                       : std::get<double>(other.data);
-    return left == right;
+    const auto order = compareNumbers(*this, other);
+    return order && *order == 0;
   }
   if (data.index() != other.data.index())
     return false;

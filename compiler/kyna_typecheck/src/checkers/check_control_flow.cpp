@@ -6,30 +6,35 @@
 #include <optional>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 #include <kyna/lexing/token.hpp>
 
 namespace kyna {
 namespace {
+std::optional<std::string> numericCaseKey(const Literal &literal, bool negative) {
+  try {
+    if (literal.kind == Literal::Kind::Int) {
+      const auto value = std::stoll((negative ? "-" : "") + literal.value);
+      return "integer:" + std::to_string(value);
+    }
+    const auto value = std::stod(literal.value) * (negative ? -1.0 : 1.0);
+    if (!std::isfinite(value)) return {};
+    constexpr double boundary = 9223372036854775808.0;
+    if (value >= -boundary && value < boundary && std::trunc(value) == value)
+      return "integer:" + std::to_string(static_cast<std::int64_t>(value));
+    std::ostringstream key; key << "float:" << std::hexfloat << value; return key.str();
+  } catch (const std::exception &) { return {}; }
+}
 std::optional<std::string> caseKey(const ExprPtr &expression) {
   if (const auto *literal = std::get_if<Literal>(&expression->node)) {
-    if (literal->kind == Literal::Kind::Int || literal->kind == Literal::Kind::Float) {
-      try {
-        std::ostringstream key;
-        key << "number:" << std::hexfloat << std::stold(literal->value);
-        return key.str();
-      } catch (const std::exception &) { return std::nullopt; }
-    }
+    if (literal->kind == Literal::Kind::Int || literal->kind == Literal::Kind::Float)
+      return numericCaseKey(*literal, false);
     return std::to_string(static_cast<int>(literal->kind)) + ":" + literal->value;
   }
-  if (const auto *unary = std::get_if<Unary>(&expression->node);
-      unary && unary->op == TokenKind::Minus) {
-    if (const auto *literal = std::get_if<Literal>(&unary->right->node);
-        literal && (literal->kind == Literal::Kind::Int || literal->kind == Literal::Kind::Float)) {
-      try { std::ostringstream key; key << "number:" << std::hexfloat << -std::stold(literal->value); return key.str(); }
-      catch (const std::exception &) { return std::nullopt; }
-    }
-  }
-  return std::nullopt;
+  if (const auto *unary = std::get_if<Unary>(&expression->node); unary && unary->op == TokenKind::Minus)
+    if (const auto *literal = std::get_if<Literal>(&unary->right->node); literal && (literal->kind == Literal::Kind::Int || literal->kind == Literal::Kind::Float))
+      return numericCaseKey(*literal, true);
+  return {};
 }
 }
 
@@ -111,10 +116,11 @@ void Analyzer::checkSwitch(const SwitchStmt &n, SourceLocation loc) {
   for (const auto &arm : n.cases) {
     if (arm.isDefault) {
       if (seenDefault)
-        error("duplicate default arm in switch", loc);
+        error("duplicate default arm in switch", loc, "KSEM1308", "keep one default arm");
       seenDefault = true;
       continue;
     }
+    if (seenDefault) error("case cannot follow the default arm", arm.value->location, "KSEM1309", "place the default arm last");
     const auto value = expr(arm.value);
     const auto key = caseKey(arm.value);
     if (!key)
@@ -178,7 +184,7 @@ void Analyzer::checkReturn(const ReturnStmt &n) {
     returnedTypes.push_back(actual);
   if (inFunction && !compatible(currentReturn, actual))
     error("return type " + actual.str() + " does not satisfy " + currentReturn.str(),
-          n.value ? n.value->location : SourceLocation{});
+          n.value ? n.value->location : SourceLocation{}, "KSEM1507", "return a value compatible with the declared result type");
 }
 
 } // namespace kyna

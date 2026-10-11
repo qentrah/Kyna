@@ -35,6 +35,10 @@ Additional checked-contract codes:
 | KSEM1502 | invalid generic argument count |
 | KSEM1503 | recursive function requires a return annotation |
 | KSEM1504 | type used as a runtime value, or value exported as a type |
+| KSYN1301–KSYN1302 | duplicate default or a case following default |
+| KSEM1308–KSEM1309 | the same violations in directly supplied syntax trees |
+| KSEM1507 | incompatible function return type |
+| KSEM1604 | numeric literal outside its representable range |
 | KSEM1505 | incompatible binding or assignment |
 | KSEM1601–KSEM1603 | incompatible logical, ordered comparison, or remainder operand |
 | KCLI1001 | invalid CLI usage (exit 2) |

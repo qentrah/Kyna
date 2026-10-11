@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import errno
 import pathlib
 import re
 import select
@@ -83,7 +84,20 @@ def main() -> int:
         drain(1.5)
         status = None
         for _ in range(5):
-            os.write(terminal, b"\x04")
+            status = wait_exited(0.05)
+            if status is not None:
+                break
+            try:
+                os.write(terminal, b"\x04")
+            except OSError as error:
+                # Darwin closes the PTY asynchronously during REPL teardown.
+                # Reap the child and validate its exit and captured behavior.
+                if error.errno != errno.EIO:
+                    raise
+                status = wait_exited(1)
+                if status is None:
+                    raise AssertionError("PTY closed before the REPL exited") from error
+                break
             status = wait_exited(0.7)
             if status is not None:
                 break
@@ -98,6 +112,7 @@ def main() -> int:
     finally:
         os.close(terminal)
 
+    require(os.waitstatus_to_exitcode(status) == 0, "REPL exited unsuccessfully")
     rendered = captured.decode("utf-8", errors="replace")
     rendered = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", rendered)
     require("interactive playground" in rendered, "rich REPL banner was not rendered")

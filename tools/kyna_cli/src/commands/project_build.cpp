@@ -45,14 +45,16 @@ int buildProject(const Options &options,std::ostream &output,std::ostream &error
  auto executable="ky";
 #endif
  fs::copy_file(options.executable,destination/"bin"/executable);
+ stageApplicationRuntime(options.executable,destination);
  std::string nativeShell,nativeCmd;
  for(const auto &library:options.nativeLibraries){
   auto name=library.filename().string();
   if(name.empty()||name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")!=std::string::npos)buildFailure("Invalid native library filename","KBUILD1002","Use a simple filename for explicitly supplied native libraries");
-  auto target=destination/"bin/native"/name;fs::create_directories(target.parent_path());
+  auto target=destination/"bin/native"/name/name;fs::create_directories(target.parent_path());
   if(fs::exists(target))buildFailure("Duplicate native library filename","KBUILD1002","Give explicit native libraries distinct filenames");
   fs::copy_file(library,target);
-  auto relativeLibrary="../bin/native/"+name;
+  stageNativeRuntime(fs::absolute(library),target.parent_path());
+  auto relativeLibrary="../bin/native/"+name+"/"+name;
   nativeShell+=" --native-library "+projectShellQuote(relativeLibrary);
   nativeCmd+=" --native-library \""+relativeLibrary+"\"";
  }

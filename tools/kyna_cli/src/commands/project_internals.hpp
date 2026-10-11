@@ -33,6 +33,8 @@ bool saveManifest(const fs::path &root, const toml::table &table, std::string &e
 int runDependencies(const Options &options, std::ostream &output, std::ostream &errors);
 
 int buildProject(const Options &, std::ostream &, std::ostream &);
+void stageApplicationRuntime(const fs::path &, const fs::path &);
+void stageNativeRuntime(const fs::path &, const fs::path &);
 int buildNativeProject(const Options &, const fs::path &, const fs::path &, std::ostream &);
 void installNativePackages(const fs::path &, const toml::table &, bool);
 std::string nativeTarget();

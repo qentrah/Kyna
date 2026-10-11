@@ -64,6 +64,17 @@ tar -xzf "$temporary/$asset" -C "$temporary/unpacked"
 ky_source=$(find "$temporary/unpacked" -type f -path '*/bin/ky' -print | head -1)
 test -n "$ky_source" || { printf '%s\n' "install.sh: archive does not contain bin/ky" >&2; exit 2; }
 
+payload_root=$(dirname "$(dirname "$ky_source")")
+# Install the verified binary closure before switching the executable.
+# Native dependencies may live beside ky (Windows) or under lib/runtime (Unix).
+if [ -d "$payload_root/lib" ]; then
+  mkdir -p "$prefix/lib"
+  cp -Rf "$payload_root/lib"/. "$prefix/lib/"
+fi
+if [ -d "$payload_root/licenses" ]; then
+  mkdir -p "$prefix/share/kyna/licenses"
+  cp -Rf "$payload_root/licenses"/. "$prefix/share/kyna/licenses/"
+fi
 if [ -f "$prefix/bin/ky" ]; then cp "$prefix/bin/ky" "$prefix/bin/ky.previous"; fi
 if [ -f "$prefix/bin/kyna" ]; then cp "$prefix/bin/kyna" "$prefix/bin/kyna.previous"; fi
 cp "$ky_source" "$prefix/bin/ky.new"
@@ -72,7 +83,7 @@ mv "$prefix/bin/ky.new" "$prefix/bin/ky"
 cp "$prefix/bin/ky" "$prefix/bin/kyna.new"
 mv "$prefix/bin/kyna.new" "$prefix/bin/kyna"
 
-share_source=$(dirname "$(dirname "$ky_source")")/share/kyna
+share_source=$payload_root/share/kyna
 if [ -d "$share_source" ]; then cp -R "$share_source"/. "$prefix/share/kyna/"; fi
 {
   printf '%s\n' "bin/ky" "bin/kyna"

@@ -77,8 +77,23 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
     host = "darwin" if sys.platform == "darwin" else "windows" if sys.platform == "win32" else "linux"
     import platform
     target=host+("-arm64" if platform.machine().lower() in ("arm64","aarch64") else "-x86_64")
-    checksum=hashlib.sha256(ml.read_bytes()).hexdigest()
-    (project/"kyna.toml").write_text(f'[project]\nentry = "main.ky"\n[dependencies.ml.native]\nversion = "1.0.16"\ntarget = "{target}"\nabi = 2\npath = "{ml.as_posix()}"\nsha256 = "{checksum}"\n')
+    import tarfile
+    portable = (ml.parent / "runtime-inventory.json").is_file()
+    def add_runtime(tar):
+        if portable:
+            for file in sorted(ml.parent.rglob('*')):
+                if file.is_file() and file != ml:
+                    tar.add(file, arcname=file.relative_to(ml.parent).as_posix(), recursive=False)
+    artifact_path = ml
+    archive_settings = ''
+    if portable:
+        artifact_path = project / 'portable-ml.tar.gz'
+        with tarfile.open(artifact_path, 'w:gz') as tar:
+            tar.add(ml, arcname=ml.name)
+            add_runtime(tar)
+        archive_settings = f'archive = true\nlibrary = "{ml.name}"\n'
+    checksum=hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    (project/"kyna.toml").write_text(f'[project]\nentry = "main.ky"\n[dependencies.ml.native]\nversion = "1.0.16"\ntarget = "{target}"\nabi = 2\npath = "{artifact_path.as_posix()}"\nsha256 = "{checksum}"\n'+archive_settings)
     run(["install"],cwd=project)
     run(["install","--locked"],cwd=project)
     # A second lock write failure restores the first lock, including removal.
@@ -112,13 +127,14 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
     diagnostic=json.loads(failure.stderr)
     assert diagnostic["schema"] == "kyna.diagnostic/v1", diagnostic
     assert "KBUILD1001" in failure.stderr and "Choose a fresh" in failure.stderr
-    artifact=next((project/".kyna/native").glob("*.native"));artifact.write_bytes(b"tampered")
+    artifact=next((project/".kyna/native").rglob(ml.name if portable else "*.native"));artifact.write_bytes(b"tampered")
     run(["run","main.ky"],False,cwd=project)
     # Native archives retain source wrappers and verify every installed file.
     import tarfile, io
     archive=project/"ml.tar.gz"
     with tarfile.open(archive,"w:gz") as tar:
         tar.add(ml,arcname="libkyna_ml.so")
+        add_runtime(tar)
         data=(root/"examples/native/packages/ml.ky").read_bytes(); info=tarfile.TarInfo("ml.ky"); info.size=len(data);tar.addfile(info,io.BytesIO(data))
     sha=hashlib.sha256(archive.read_bytes()).hexdigest()
     (project/"kyna.toml").write_text(f'[project]\nentry = "main.ky"\n[dependencies.ml.native]\nversion = "1.0.16"\ntarget = "{target}"\nabi = 2\npath = "ml.tar.gz"\nsha256 = "{sha}"\narchive = true\nlibrary = "libkyna_ml.so"\n')

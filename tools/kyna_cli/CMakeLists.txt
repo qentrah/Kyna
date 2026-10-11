@@ -22,6 +22,7 @@ add_executable(kyna
   src/commands/project_format.cpp
   src/commands/project_dependencies.cpp
   src/commands/project_build.cpp
+  src/commands/project_runtime_staging.cpp
   src/commands/native_build.cpp
   src/loading/native_package_installation.cpp
   src/loading/native_archive_acquisition.cpp

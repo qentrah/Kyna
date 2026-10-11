@@ -23,6 +23,18 @@ def main():
         return diagnostics
 
     cases = [
+        ('var x: int = null;', 'KSEM1505'),
+        ('var x: int? = 1; var y: int = x;', 'KSEM1505'),
+        ('fn consume(cb: fn(int): int): int { return cb(1); } fn wrong(x: str): int { return 1; } consume(wrong);', 'KSEM1202'),
+        ('intf Box<T> {value:T;} var x: Box<int,str> = {value:1};', 'KSEM1502'),
+        ('var x=1; var x=2;', 'KSEM1102'),
+        ('switch(1){default:{} default:{}}', 'KSYN1301'),
+        ('switch(1){default:{} case 1:{}}', 'KSYN1302'),
+        ('switch(1){case "1":{}}', 'KSEM1307'),
+        ('fn f(): int { return null; }', 'KSEM1507'),
+        ('fn f(x: int?): int { return x; }', 'KSEM1507'),
+        ('var big = 9223372036854775808;', 'KSEM1604'),
+        ('switch(0){case 0:{} case -0.0:{}}', 'KSEM1306'),
         ('fn f(x: int): int { return x; } var g = f; g("bad");', 'KSEM1202'),
         ('fn f(x: int) { return x; } var g = f; g();', 'KSEM1201'),
         ('fn f(x: int) { return x; } var result: str = f(1);', 'KSEM1505'),
@@ -43,6 +55,10 @@ def main():
     ]
     for source, code in cases: check(source, code)
     for source in [
+        'var x: int? = null; var y: int? = 1;',
+        'var minimum:int = -9223372036854775808;',
+        'switch(9223372036854775807){case 9223372036854775806:{} case 9223372036854775807:{}}',
+        'switch(9007199254740992.0){case 9007199254740993:{} case 9007199254740992.0:{}}',
         'type Count = int; fn f(x: Count) { return x + 1; } var g = f; var result: Count = g(1);',
         'fn f(x: int): int { return x; } var g: fn(int): int = f; var result: int = g(1);',
         'var result: float = 1 / 2;',

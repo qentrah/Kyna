@@ -6,6 +6,7 @@ kyna_add_module(kyna_vm SOURCES
   src/validators/bytecode_numeric_operations.cpp
   src/rendering/bytecode_runtime_diagnostic.cpp
   src/memory/managed_heap.cpp
+  src/values/numeric_comparison.cpp
   src/values/runtime_value.cpp
   src/values/lexical_environment.cpp
   src/values/function_value.cpp
