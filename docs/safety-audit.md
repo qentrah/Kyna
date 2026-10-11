@@ -134,3 +134,8 @@ malformed inventory in the same VM. QML engines commit only after configuration
 succeeds. All 62 local optional CTests pass after this ownership change. Rams
 quick_review was requested again with via=rules for the GUI file and returned
 exhausted one-time review credits; it returned no findings.
+
+Event release now also removes lifecycle subscription metadata, so repeated
+subscribe/unsubscribe cycles do not retain stale event IDs. Timers and explicit
+unsubscription share the same callback release operation. The optional package
+fixture and all three GUI host lifetime tests pass after this cleanup.
