@@ -12,7 +12,8 @@ permissions:
   contents: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve long native dependency builds and their reusable binary caches.
+  cancel-in-progress: false
 jobs:
   desktop:
     strategy:
