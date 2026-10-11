@@ -179,13 +179,14 @@ jobs:
         shell: bash
         run: python3 tests/native/sign_android_smoke.py "$(find build-android -name '*.apk' -print -quit)" build-android/kyna-android-arm64-smoke.apk
       - name: Archive matching Qt corresponding source
-        run: tar -czf kyna-android-qt-sources-6.7.3.tar.gz -C android-qt-sources .
+        run: |
+          mkdir android-release-assets
+          cp build-android/kyna-android-arm64-smoke.apk android-release-assets/
+          tar -czf android-release-assets/kyna-android-qt-sources-6.7.3.tar.gz -C android-qt-sources .
       - uses: actions/upload-artifact@v6
         with:
           name: android-arm64
-          path: |
-            build-android/kyna-android-arm64-smoke.apk
-            kyna-android-qt-sources-6.7.3.tar.gz
+          path: android-release-assets/*
 
   # Hosted macOS VMs cannot initialize HVF for nested ARM64 emulation. The
   # application gate runs only on an explicitly provisioned physical runner;
