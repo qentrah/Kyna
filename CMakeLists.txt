@@ -202,7 +202,7 @@ endif()
 if(KYNA_BUILD_TESTS AND KYNA_WITH_GUI AND WIN32)
   add_executable(kyna_windows_process_probe tests/native/windows_process_probe.cpp)
   set_target_properties(kyna_windows_process_probe PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-  target_link_libraries(kyna_windows_process_probe PRIVATE dbghelp)
+  target_link_libraries(kyna_windows_process_probe PRIVATE dbghelp psapi)
 endif()
 
 if(KYNA_BUILD_TESTS)

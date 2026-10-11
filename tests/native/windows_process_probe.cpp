@@ -2,11 +2,21 @@
 #define NOMINMAX
 #include <windows.h>
 #include <dbghelp.h>
+#include <psapi.h>
 #include <chrono>
 #include <iostream>
 #include <string>
 
 namespace {
+void mapping(HANDLE process, DWORD64 address) {
+  MEMORY_BASIC_INFORMATION region{};
+  if (!VirtualQueryEx(process,reinterpret_cast<const void*>(address),&region,sizeof(region))) return;
+  wchar_t name[32768]{};
+  const auto length=GetMappedFileNameW(process,reinterpret_cast<void*>(address),name,32768);
+  std::wcerr<<L"  mapping "<<(length ? name : L"<unmapped>")<<L" base="<<region.AllocationBase
+            <<L" state=0x"<<std::hex<<region.State<<L" protect=0x"<<region.Protect
+            <<L" offset=0x"<<(address-reinterpret_cast<DWORD64>(region.AllocationBase))<<std::dec<<L'\n';
+}
 std::wstring quote(const wchar_t *argument) {
   std::wstring result=L"\""; unsigned slashes=0;
   for (const wchar_t *p=argument; *p; ++p) {
@@ -19,8 +29,11 @@ std::wstring quote(const wchar_t *argument) {
 void trace(HANDLE process, DWORD threadId, const EXCEPTION_RECORD &exception) {
   std::cerr<<"WINDOWS_EXCEPTION code=0x"<<std::hex<<exception.ExceptionCode
            <<" address="<<exception.ExceptionAddress<<std::dec<<'\n';
+  mapping(process,reinterpret_cast<DWORD64>(exception.ExceptionAddress));
   for (DWORD i=0;i<exception.NumberParameters;++i)
     std::cerr<<"  exception_parameter["<<i<<"]=0x"<<std::hex<<exception.ExceptionInformation[i]<<std::dec<<'\n';
+  if(exception.ExceptionCode==EXCEPTION_ACCESS_VIOLATION && exception.NumberParameters>=2)
+    mapping(process,exception.ExceptionInformation[1]);
   SymRefreshModuleList(process);
   auto thread=OpenThread(THREAD_GET_CONTEXT|THREAD_QUERY_INFORMATION,FALSE,threadId);
   if (!thread) return;
@@ -42,6 +55,7 @@ void trace(HANDLE process, DWORD threadId, const EXCEPTION_RECORD &exception) {
     if (SymFromAddr(process,frame.AddrPC.Offset,&displacement,symbol))
       std::cerr<<" "<<symbol->Name<<"+0x"<<std::hex<<displacement<<std::dec;
     std::cerr<<'\n';
+    if(i<8) mapping(process,frame.AddrPC.Offset);
     if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64,process,thread,&frame,&context,nullptr,
                      SymFunctionTableAccess64,SymGetModuleBase64,nullptr)) break;
   }
