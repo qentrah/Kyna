@@ -40,3 +40,10 @@ This follows CMake's [post-resolution dependency filtering](https://cmake.org/cm
 application DLLs, including those in temporary directories, still require resolution.
 The inventory records this system-dependency policy rather than treating OS-only
 service DLLs as application artifacts.
+
+GUI session bookkeeping is plain C++ state. Its QObject event bridge and QML
+engine are created after `QGuiApplication` and destroyed before it, following
+Qt's [QObject lifetime rule](https://doc.qt.io/qt-6/threads-qobject.html). Type
+checking native exports does not create a Qt application. An embedded Qt host
+must provide a `QGuiApplication` and invoke GUI work on its UI thread; incompatible
+hosts and wrong-thread calls produce structured native failures.

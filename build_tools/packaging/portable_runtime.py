@@ -153,7 +153,14 @@ def stage(root, binary_paths, search_paths, qt=None, qt_location=pathlib.Path('q
         destination.parent.mkdir(parents=True, exist_ok=True)
         if source in copies: return copies[source]
         if destination.exists() and digest(destination) != digest(source): raise RuntimeError(f'conflicting dependency basename {source.name}')
-        shutil.copy2(source, destination); copies[source] = destination; origins[destination] = source
+        # CMake/vcpkg may already have installed an app-local dependency here.
+        # CopyFile2 reports a sharing violation for a Windows self-copy.
+        if source != destination.resolve():
+            try:
+                shutil.copy2(source, destination)
+            except OSError as error:
+                raise RuntimeError(f'Cannot copy runtime dependency {source} to {destination}: {error}') from error
+        copies[source] = destination; origins[destination] = source
         return destination
     if sys.platform == 'darwin':
         executable = next((p for p in seeds if p.name in ('ky', 'kyna')), seeds[0])

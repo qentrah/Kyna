@@ -57,3 +57,13 @@ Windows child-process probe captures exception modules and symbolized stacks;
 Windows application support remains gated. Android's hosted APK at `9d870a8`
 passes the refreshed local emulator lifecycle recording. Android release assets
 now share one directory, avoiding nested paths in merged release artifacts.
+
+The GUI session previously inherited QObject before owning its application.
+That violated Qt's required construction/destruction order. The session now
+creates a separate event bridge lazily, inside the application's lifetime,
+and rejects incompatible Qt hosts and calls from a different UI thread. All
+62 local optional CTests pass, including three GUI embedding contracts. Windows
+verification of this fix is pending. Rams quick_review with via=rules was
+requested after the edit and again reported exhausted workspace credits.
+Windows app-local dependencies are inventoried without copying a file over
+itself; copy failures retain both source and destination paths.

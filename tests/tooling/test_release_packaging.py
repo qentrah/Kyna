@@ -7,6 +7,16 @@ sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_windows_app_local_dependency_is_inventoried_without_self_copy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'bin').mkdir()
+            executable=root/'bin/ky.exe';executable.write_bytes(b'MZexecutable')
+            dependency=root/'bin/libcrypto.dll';dependency.write_bytes(b'MZdependency')
+            with patch.object(portable_runtime.sys,'platform','win32'),patch.object(portable_runtime,'cmake_dependencies',return_value=[dependency]):
+                inventory=portable_runtime.stage(root,[pathlib.Path('bin/ky.exe')],[])
+            self.assertEqual({binary['path'] for binary in inventory['binaries']},{'bin/ky.exe','bin/libcrypto.dll'})
+            self.assertEqual(dependency.read_bytes(),b'MZdependency')
+
     def test_windows_os_filter_stops_recursion_but_keeps_msvc_runtimes(self):
         with patch.dict(os.environ, {'SystemRoot': r'C:\Windows'}):
             include, exclude = portable_runtime.windows_system_filters()
