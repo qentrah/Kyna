@@ -33,7 +33,7 @@ void trace(HANDLE process, DWORD threadId, const EXCEPTION_RECORD &exception) {
   for (unsigned i=0;i<32 && frame.AddrPC.Offset;++i) {
     IMAGEHLP_MODULE64 module{};module.SizeOfStruct=sizeof(module);
     if (SymGetModuleInfo64(process,frame.AddrPC.Offset,&module))
-      std::cerr<<"  "<<(module.ImageName ? module.ImageName : module.ModuleName)<<"+0x"<<std::hex<<(frame.AddrPC.Offset-module.BaseOfImage)<<std::dec;
+      std::cerr<<"  "<<(module.ImageName[0] ? module.ImageName : module.ModuleName)<<"+0x"<<std::hex<<(frame.AddrPC.Offset-module.BaseOfImage)<<std::dec;
     else std::cerr<<"  0x"<<std::hex<<frame.AddrPC.Offset<<std::dec;
     alignas(SYMBOL_INFO) unsigned char storage[sizeof(SYMBOL_INFO)+MAX_SYM_NAME]{};
     auto symbol=reinterpret_cast<SYMBOL_INFO*>(storage);

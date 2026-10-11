@@ -28,7 +28,15 @@ and lifecycle without requiring a hosted-runner GPU; it does not establish hardw
 renderer coverage. Windows runners use the native Windows platform and font
 database in their desktop session. The Qt 6.7.3 offscreen plugin crashed there,
 including with an explicit system-font directory, so it does not establish Windows
-application support. System fonts are not copied into Kyna archives. Windows Qt messages are forced to stderr, and failed child
+application support. The native Windows retry also faults and requires the
+exception-stack probe; changing the backend alone did not fix it. System fonts are not copied into Kyna archives. Windows Qt messages are forced to stderr, and failed child
 processes report their decimal and hexadecimal exit codes. A manual optional-package
 workflow can select one desktop target for diagnosis; normal PR/release runs retain
 all five desktop targets and Android cross-compilation.
+
+Windows closure scanning stops recursion at DLLs resolved from the OS root,
+System32, SysWOW64 or WinSxS. MSVC redistributables remain included and audited.
+This follows CMake's [post-resolution dependency filtering](https://cmake.org/cmake/help/latest/command/file.html#get-runtime-dependencies);
+application DLLs, including those in temporary directories, still require resolution.
+The inventory records this system-dependency policy rather than treating OS-only
+service DLLs as application artifacts.

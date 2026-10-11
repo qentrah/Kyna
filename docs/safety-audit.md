@@ -47,10 +47,13 @@ remain required. Real app recordings are in [videos](videos/README.md).
 The final compiler source checkpoint `607fb61` passes all local 57-test Debug,
 Release and ASan/UBSan suites and the 59-test optional suite. Its focused
 [Linux LeakSanitizer check](https://github.com/qentrah/Kyna/actions/runs/38109135038)
-passes, including receiver-sensitive signature interning. This does not replace
-the pending full Linux sanitizer suite. At `6971895`, native package applications
+passes, including receiver-sensitive signature interning. The full Linux CI job
+also passes 57 Release, 57 Debug and 57 ASan/UBSan CTests with `detect_leaks=1`
+([completed job](https://github.com/qentrah/Kyna/actions/runs/38109134996)). At `6971895`, native package applications
 and relocation pass Linux x86_64/ARM64 and macOS ARM64; the Windows suite passes
-58/59, with an access violation in Qt's offscreen GUI backend. The Windows native
-platform retry at `9d870a8` remains required. Android's hosted APK at `6971895`
+58/59, with a GUI access violation. The native Windows platform retry at `9d870a8`
+also crashes, so the backend selection did not resolve the defect. A bounded
+Windows child-process probe captures exception modules and symbolized stacks;
+Windows application support remains gated. Android's hosted APK at `6971895`
 passes the refreshed local emulator lifecycle recording. Android release assets
 now share one directory, avoiding nested paths in merged release artifacts.

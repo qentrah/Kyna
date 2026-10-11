@@ -50,11 +50,15 @@ retain these payloads; npm consumes the same release archives and SHA256SUMS.
   [native workload measurements](performance/native-workloads-checkpoint.json)
   describe correctness, packaging and measurement scope.
 
-Core Linux/macOS portable CI passed at `82c9e93`. Earlier optional Linux/macOS
-CTest and Android cross-compilation passed. Windows exposed sibling DLL search,
-now corrected with `LoadLibraryExW`; final five-target CLI/native release
-preparation is running at `7b44cd2`. Historical passes do not establish that
-all final-head targets are supported.
+Final compiler checkpoint `607fb61` passes full Linux Release, Debug and
+ASan/UBSan CI with LeakSanitizer enabled, and macOS core portable CI. Native
+application/relocation checks at `9d870a8` pass Linux x86_64/ARM64 and macOS
+x86_64/ARM64. Windows core tests pass, but OS dependency recursion blocked
+packaging; the scanner now excludes OS DLL recursion while retaining MSVC
+redistributables. Windows GUI still faults under both offscreen and native
+backends; exception-stack diagnosis is running. Final Windows packaging and
+application retries are required. Android uploads are flat, and the hosted
+`6971895` APK passes the refreshed local emulator lifecycle recording.
 
 ## Remaining release gates
 
@@ -77,7 +81,8 @@ Debug benchmark ratios exceeded the existing informational threshold; matching
 Release checkpoints verify results and timing comparisons. No performance claim
 is based on simultaneous builds or comparisons between Debug and Release.
 
-Generated Qt/NDK toolchains are preserved in verified local backups under
-`build-release/verification`. Emulator images use sparse restoration. Sanitizer
-logs are preserved; its previous generated archive was removed for recording
-space. Project source and lockfiles were preserved during authorized cleanup.
+Generated Debug/sanitizer builds, redundant Qt/NDK downloads and duplicate
+staging directories were removed for recording space. Verification logs,
+release candidates and their verified corresponding Qt source archives remain.
+Emulator images use sparse restoration. Project source and lockfiles were
+preserved during authorized cleanup.

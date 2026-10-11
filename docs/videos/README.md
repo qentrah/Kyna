@@ -7,7 +7,8 @@ window; the Android recording contains only the disposable ARM64 emulator displa
 - [Desktop GUI + CGAL + mlpack video](kyna-native-showcase-macos.mp4)
   ([result image](kyna-native-showcase-macos.png)): edit the input, activate the
   accessible hull and regression buttons, and read the input callback. Expected
-  results are four hull vertices, predictions `[9, 11]`, and the edited text.
+  results are four hull vertices, predictions `[9, 11]`, and `Kyna live input`.
+  This refreshed recording uses the final compiler checkpoint `607fb61`.
 - [Android ARM64 lifecycle video](kyna-android-arm64-smoke.mp4)
   ([application image](kyna-android-arm64-smoke.png)): the Qt application runs on
   Android 14, moves to the background and resumes, then completes its retained
