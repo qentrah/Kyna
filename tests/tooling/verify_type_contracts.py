@@ -104,6 +104,38 @@ def main():
         entry.write_text('import type { Count } from "./t.ky"; var count: Count = 42; print(count);')
         result = subprocess.run([binary, 'run', str(entry), '--no-color'], capture_output=True, text=True, timeout=20)
         assert result.returncode == 0 and result.stdout == '42\n', result
+        private_types = root / 'private.ky'
+        private_types.write_text('type Internal = int; type T = str; '
+                                 'export type Count = Internal; '
+                                 'export intf Box<T> { value: Internal; other: T; } '
+                                 'export intf Wrapper { child: Hidden; } '
+                                 'intf Hidden { number: Internal; }')
+        (root / 'private_reexport.ky').write_text('import type { Box, Wrapper } from "./private.ky"; export type { Box, Wrapper };')
+        private_stamp = None
+        for _ in range(2):
+            check('import type { Count, Box } from "./private.ky"; var count: Count = 1; '
+                  'var box: Box<int> = {value:1, other:2};', name=entry)
+            check('import type { Box } from "./private_reexport.ky"; '
+                  'var box: Box<str> = {value:1, other:"ok"};', name=entry)
+            check('import type { Box } from "./private_reexport.ky"; '
+                  'var box: Box<str> = {value:"bad", other:"ok"};', 'KSEM1506', entry)
+            check('import type { Internal } from "./private.ky";', 'K4004', entry)
+            check('import type { Hidden } from "./private.ky";', 'K4004', entry)
+            check('import type * as types from "./private.ky"; '
+                  'var hidden: types.Hidden = {number:1};', 'KSEM1505', entry)
+            stamp = next(cache_root.glob('private.ky.*.kyc')).stat().st_mtime_ns
+            if private_stamp is not None:
+                assert stamp == private_stamp, "checked private contracts must reuse the warm cache"
+            private_stamp = stamp
+        check('import type { Box } from "./private.ky"; '
+              'var box: Box<int?> = {value:1, other:null};', name=entry)
+        check('import type { Box } from "./private.ky"; '
+              'var box: Box<int?> = {value:1, other:"bad"};', 'KSEM1506', entry)
+        # Retain private interface dependencies, including references declared later.
+        check('import type { Wrapper } from "./private.ky"; '
+              'var wrapper: Wrapper = {child:{number:1}};', name=entry)
+        check('import type { Wrapper } from "./private_reexport.ky"; '
+              'var wrapper: Wrapper = {child:{number:"bad"}};', 'KSEM1506', entry)
         # Exact bytes, not file metadata alone, determine cache validity.
         original = library.stat()
         library.write_text('export fn add(value: str) { return value; } export var count = 42;')

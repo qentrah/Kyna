@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
   pull_request:
-    paths: ['library/gui/**', 'library/geometry/**', 'library/ml/**', 'library/native/**', 'sdk/**', 'tools/android-shell/**', 'build_tools/packaging/**', 'tests/native/**', '.github/workflows/native-packages.yml']
+    paths: ['compiler/**', 'runtime/**', 'library/**', 'sdk/**', 'tools/**', 'build_tools/**', 'tests/**', 'cmake/**', 'CMakeLists.txt', 'vcpkg*', 'editors/vscode-kyna/**', '.github/workflows/**']
 permissions:
   contents: read
   id-token: write

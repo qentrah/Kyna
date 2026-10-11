@@ -23,19 +23,57 @@ TypeRef qualify(TypeRef type, const std::map<std::string, std::string> &names) {
 
 InterfaceDecl qualify(InterfaceDecl type, const std::map<std::string, std::string> &names) {
   if (const auto found = names.find(type.name); found != names.end()) type.name = found->second;
-  for (auto &parent : type.parents) parent = qualify(parent, names);
-  for (auto &field : type.fields) field.type = qualify(field.type, names);
+  auto visibleNames = names;
+  for (const auto &parameter : type.typeParams) visibleNames.erase(parameter);
+  for (auto &parent : type.parents) parent = qualify(parent, visibleNames);
+  for (auto &field : type.fields) field.type = qualify(field.type, visibleNames);
   for (auto &method : type.methods) {
-    method.returnType = qualify(method.returnType, names);
-    for (auto &param : method.params) param.type = qualify(param.type, names);
+    method.returnType = qualify(method.returnType, visibleNames);
+    for (auto &param : method.params) param.type = qualify(param.type, visibleNames);
   }
   for (auto &signature : type.callSignatures) {
-    signature.returnType = qualify(signature.returnType, names);
-    for (auto &param : signature.params) param.type = qualify(param.type, names);
+    signature.returnType = qualify(signature.returnType, visibleNames);
+    for (auto &param : signature.params) param.type = qualify(param.type, visibleNames);
   }
   for (auto &signature : type.indexSignatures) {
-    signature.keyType = qualify(signature.keyType, names);
-    signature.valueType = qualify(signature.valueType, names);
+    signature.keyType = qualify(signature.keyType, visibleNames);
+    signature.valueType = qualify(signature.valueType, visibleNames);
+  }
+  return type;
+}
+
+// Checked alias bindings include private aliases without exporting their names.
+// Apply them to interface members before the contract leaves its owning module.
+TypeRef resolveContract(TypeRef type, const Bindings &checked) {
+  if (const auto alias = checked.find(type.name);
+      alias != checked.end() && alias->second.name.starts_with("type:")) {
+    auto target = alias->second;
+    target.name.erase(0, 5);
+    if (!type.typeArgs.empty()) target.typeArgs = type.typeArgs;
+    target.nullable = target.nullable || type.nullable;
+    target.unionTypes.insert(target.unionTypes.end(), type.unionTypes.begin(), type.unionTypes.end());
+    type = std::move(target);
+  }
+  for (auto &argument : type.typeArgs) argument = resolveContract(argument, checked);
+  for (auto &arm : type.unionTypes) arm = resolveContract(arm, checked);
+  return type;
+}
+
+InterfaceDecl checkedInterface(InterfaceDecl type, Bindings checked) {
+  for (const auto &parameter : type.typeParams) checked.erase(parameter);
+  for (auto &parent : type.parents) parent = resolveContract(parent, checked);
+  for (auto &field : type.fields) field.type = resolveContract(field.type, checked);
+  for (auto &method : type.methods) {
+    method.returnType = resolveContract(method.returnType, checked);
+    for (auto &parameter : method.params) parameter.type = resolveContract(parameter.type, checked);
+  }
+  for (auto &signature : type.callSignatures) {
+    signature.returnType = resolveContract(signature.returnType, checked);
+    for (auto &parameter : signature.params) parameter.type = resolveContract(parameter.type, checked);
+  }
+  for (auto &signature : type.indexSignatures) {
+    signature.keyType = resolveContract(signature.keyType, checked);
+    signature.valueType = resolveContract(signature.valueType, checked);
   }
   return type;
 }
@@ -75,10 +113,10 @@ AnalysisResult analyzeModuleGraph(ParsedModuleGraph graph, const Bindings &nativ
       std::map<std::string, std::string> qualifiedNames;
       for (const auto &[name, type] : exports)
         if (type.name.starts_with("type:")) qualifiedNames[name] = dependency.alias + "." + name;
-      for (const auto &iface : interfaceContracts[dependency.canonicalPath]) {
-        qualifiedNames.try_emplace(iface.name, dependency.alias + "." + iface.name);
+      for (const auto &iface : interfaceContracts[dependency.canonicalPath])
+        qualifiedNames.try_emplace(iface.name, dependency.alias + ".<private>." + iface.name);
+      for (const auto &iface : interfaceContracts[dependency.canonicalPath])
         externalInterfaces.push_back(qualify(iface, qualifiedNames));
-      }
       for (const auto &[name, type] : exports) {
         namespaces[dependency.alias][name] = qualify(type, qualifiedNames);
         if (type.name.starts_with("type:")) {
@@ -126,13 +164,6 @@ AnalysisResult analyzeModuleGraph(ParsedModuleGraph graph, const Bindings &nativ
         if (!import->namespaceAlias.empty()) imports[import->namespaceAlias] = imports[dependency.alias];
       }
     }
-    for (const auto &statement : module.syntax.module.declarations) {
-      if (const auto *iface = std::get_if<InterfaceDecl>(&statement->node);
-          iface && (iface->exported || module.isDeclaration || module.syntax.module.exports.contains(iface->name)))
-        interfaceContracts[path].push_back(*iface);
-    }
-    // Re-exported contracts retain their referenced interface definitions.
-    interfaceContracts[path].insert(interfaceContracts[path].end(), externalInterfaces.begin(), externalInterfaces.end());
     const auto sources = dependencySources(graph, path);
     const auto cache = export_cache::cachePath(path);
     auto cached = !graph.hasSourceOverlays && nativeBindings.empty() && path != graph.entry && export_cache::stampMatches(sources, cache)
@@ -146,7 +177,7 @@ AnalysisResult analyzeModuleGraph(ParsedModuleGraph graph, const Bindings &nativ
       analyzer.setExternalBindings(std::move(imports));
       analyzer.setExternalTypes(std::move(importedTypes));
       analyzer.setModuleExports(std::move(namespaces));
-      analyzer.setExternalInterfaces(std::move(externalInterfaces));
+      analyzer.setExternalInterfaces(externalInterfaces);
       analyzer.setExternalClasses(std::move(externalClasses));
       auto errors = analyzer.analyze(module.syntax.module.declarations);
       auto practices = checkBestPractices(module.syntax.module.declarations);
@@ -160,6 +191,11 @@ AnalysisResult analyzeModuleGraph(ParsedModuleGraph graph, const Bindings &nativ
       diagnostics.insert(diagnostics.end(), errors.begin(), errors.end());
       diagnostics.insert(diagnostics.end(), practices.begin(), practices.end());
     }
+    // Private interfaces remain internal contract dependencies, never importable exports.
+    for (const auto &statement : module.syntax.module.declarations)
+      if (const auto *iface = std::get_if<InterfaceDecl>(&statement->node))
+        interfaceContracts[path].push_back(checkedInterface(*iface, checked));
+    interfaceContracts[path].insert(interfaceContracts[path].end(), externalInterfaces.begin(), externalInterfaces.end());
     for (const auto &name : module.syntax.module.exports) {
       if (const auto found = checked.find(name); found != checked.end()) contracts[path][name] = found->second;
       else {

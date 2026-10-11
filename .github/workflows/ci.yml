@@ -19,10 +19,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        id: core-cache
+        with:
+          path: .vcpkg-binary-cache
+          key: core-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -36,6 +44,21 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Verify the staged installation
         run: cmake --install build --config Release --prefix staged-install
+      - name: Verify Debug and sanitizer configurations
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          for configuration in Debug Sanitizers; do
+            directory="build-${configuration,,}"
+            sanitizer=OFF
+            if [ "$configuration" = Sanitizers ]; then sanitizer=ON; fi
+            cmake -S . -B "$directory" -DCMAKE_BUILD_TYPE=Debug -DKYNA_ENABLE_SANITIZERS="$sanitizer" -DKYNA_FETCH_DEPENDENCIES=OFF -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/build/vcpkg_installed" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+            cmake --build "$directory" --parallel 3
+            ctest --test-dir "$directory" --output-on-failure
+          done
       - name: Install ELF relocation tools
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y patchelf
@@ -44,3 +67,8 @@ jobs:
       - name: Test the npm installer package
         working-directory: tools/npm-installer
         run: npm test
+      - uses: actions/cache/save@v4
+        if: always() && steps.core-cache.outputs.cache-hit != 'true'
+        with:
+          path: .vcpkg-binary-cache
+          key: ${{ steps.core-cache.outputs.cache-primary-key }}

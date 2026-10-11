@@ -1,3 +1,4 @@
+// Owns structural interface conformance, generic substitution, and inherited contracts.
 #include "kyna/semantics/program_analyzer.hpp"
 #include "kyna/semantics/modifier_query.hpp"
 #include <algorithm>
@@ -113,28 +114,11 @@ bool Analyzer::classConforms(const ClassDecl &klass, const InterfaceDecl &contra
 
 TypeRef Analyzer::substitute(const TypeRef &type, const InterfaceDecl &contract,
                              const TypeRef &contractRef) const {
-  if (contractRef.typeArgs.empty())
-    return type;
-  auto replace = [&](const TypeRef &value) -> TypeRef {
-    for (std::size_t index = 0; index < contract.typeParams.size() &&
-                                index < contractRef.typeArgs.size();
-         ++index)
-      if (value.name == contract.typeParams[index]) {
-        TypeRef result = contractRef.typeArgs[index];
-        return result;
-      }
-    return value;
-  };
-  TypeRef result = type;
-  result.name = replace(type).name;
-  result.nullable = type.nullable;
-  result.typeArgs.clear();
-  for (const auto &arg : type.typeArgs)
-    result.typeArgs.push_back(substitute(arg, contract, contractRef));
-  result.unionTypes.clear();
-  for (const auto &u : type.unionTypes)
-    result.unionTypes.push_back(substitute(u, contract, contractRef));
-  return result;
+  std::map<std::string, TypeRef> mapping;
+  for (std::size_t index = 0; index < contract.typeParams.size() &&
+                              index < contractRef.typeArgs.size(); ++index)
+    mapping[contract.typeParams[index]] = contractRef.typeArgs[index];
+  return substituteContractType(type, mapping);
 }
 
 bool Analyzer::objectConforms(const ObjectExpr &object, const InterfaceDecl &contract,
@@ -147,7 +131,17 @@ bool Analyzer::objectConforms(const ObjectExpr &object, const InterfaceDecl &con
                                     [&](const auto &f) { return f.name == required.name; });
     if (found == object.fields.end() && effective.optionalFields.contains(required.name))
       continue;
-    if (found == object.fields.end() || !compatible(substitute(required.type, contract, contractRef), expr(found->value))) {
+    bool matches = false;
+    if (found != object.fields.end()) {
+      const auto expected = resolveType(substitute(required.type, contract, contractRef));
+      auto actual = expr(found->value);
+      if (const auto *nestedContract = interfaces.find(expected.name))
+        if (const auto *nestedObject = std::get_if<ObjectExpr>(&found->value->node))
+          if (objectConforms(*nestedObject, *nestedContract, expected, found->value->location))
+            actual = expected;
+      matches = compatible(expected, actual);
+    }
+    if (!matches) {
       conforms = false;
       error("object does not provide compatible field '" + required.name +
                 "' required by interface '" + contract.name + "'",

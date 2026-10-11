@@ -41,7 +41,10 @@ Type-definition files (`.kyna.d`, `.d.ky`, `.ky.d`) are ambient: they declare in
 `type Count = int;` names an existing type. Export aliases and structural
 interfaces from ordinary source files and use `import type` to keep the import
 out of runtime initialization. `any` remains an explicit escape hatch; imports
-do not silently erase checked signatures.
+do not silently erase checked signatures. Exported interface contracts resolve
+private aliases and retain private interface dependencies without making those
+names importable. Generic arguments preserve nullability and nested types;
+object literals are checked recursively against nested interface fields.
 
 Function values can be annotated as `fn(int, str): bool`. Their argument and
 return contracts remain checked when assigned to bindings or imported. An
