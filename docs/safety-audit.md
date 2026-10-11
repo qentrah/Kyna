@@ -43,3 +43,14 @@ focused extension tests pass. Verified source archives and extracted notices now
 cover the local CLI, Qt, CGAL and mlpack dependency closures. These inventories do
 not replace license clearance. Stable signing and final platform packaging gates
 remain required. Real app recordings are in [videos](videos/README.md).
+
+The final compiler source checkpoint `607fb61` passes all local 57-test Debug,
+Release and ASan/UBSan suites and the 59-test optional suite. Its focused
+[Linux LeakSanitizer check](https://github.com/qentrah/Kyna/actions/runs/38109135038)
+passes, including receiver-sensitive signature interning. This does not replace
+the pending full Linux sanitizer suite. At `6971895`, native package applications
+and relocation pass Linux x86_64/ARM64 and macOS ARM64; the Windows suite passes
+58/59, with an access violation in Qt's offscreen GUI backend. The Windows native
+platform retry at `9d870a8` remains required. Android's hosted APK at `6971895`
+passes the refreshed local emulator lifecycle recording. Android release assets
+now share one directory, avoiding nested paths in merged release artifacts.
