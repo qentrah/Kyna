@@ -106,6 +106,9 @@ jobs:
           mkdir notarization
           cp -R portable-delivery/gui portable-delivery/geometry portable-delivery/ml notarization/
           python3 build_tools/packaging/notarize_payload.py notarization
+      - name: Archive corresponding Qt sources
+        shell: bash
+        run: mkdir -p release-assets && tar -czf "release-assets/kyna-qt-sources-${{ matrix.target }}.tar.gz" -C build-native qt-source-material
       - name: Archive verified packages
         run: python3 build_tools/packaging/archive_delivery.py --delivery portable-delivery --target ${{ matrix.target }} --output release-assets --native-only
       - uses: actions/attest-build-provenance@v4

@@ -4,9 +4,55 @@ import hashlib, io, json, os, pathlib, subprocess, sys, tarfile, tempfile, unitt
 from unittest.mock import patch
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'build_tools/packaging'))
-import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices
+import notarize_payload, sign_payload, source_notices, portable_runtime, qt_source_notices, publish_release
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_prepared_draft_receives_assets_before_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums');(root/'kyna-test.tar.gz').write_bytes(b'archive')
+            view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
+            with patch.object(publish_release.subprocess,'run',return_value=view) as run:
+                publish_release.publish('owner/repo','v1.0.16',root)
+            commands=[call.args[0] for call in run.call_args_list]
+            self.assertEqual([command[2] for command in commands],['view','upload','edit'])
+            self.assertIn('--draft=false',commands[-1]);self.assertIn('--prerelease=false',commands[-1])
+
+    def test_published_release_is_never_replaced(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            view=subprocess.CompletedProcess([],0,stdout='{"isDraft":false}')
+            with patch.object(publish_release.subprocess,'run',return_value=view) as run:
+                with self.assertRaisesRegex(RuntimeError,'already published'):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                self.assertEqual(run.call_count,1)
+
+    def test_failed_upload_keeps_release_draft(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true}')
+            failure=subprocess.CalledProcessError(1,['gh','release','upload'])
+            with patch.object(publish_release.subprocess,'run',side_effect=[view,failure]) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                self.assertEqual(run.call_count,2)
+
+    def test_draft_cannot_publish_unverified_existing_assets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            view=subprocess.CompletedProcess([],0,stdout='{"isDraft":true,"assets":[{"name":"old-unsigned.zip"}]}')
+            with patch.object(publish_release.subprocess,'run',return_value=view) as run:
+                with self.assertRaisesRegex(RuntimeError,'outside the verified delivery'):
+                    publish_release.publish('owner/repo','v1.0.16',root)
+                self.assertEqual(run.call_count,1)
+
+    def test_new_prerelease_requires_a_pushed_tag(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=pathlib.Path(temporary);(root/'SHA256SUMS').write_text('checksums')
+            view=subprocess.CompletedProcess([],1,stdout='')
+            with patch.object(publish_release.subprocess,'run',return_value=view) as run:
+                publish_release.publish('owner/repo','v1.0.16-rc.1',root)
+            self.assertIn('--verify-tag',run.call_args.args[0]);self.assertIn('--prerelease',run.call_args.args[0])
+
     def test_android_notice_resources_include_checked_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=pathlib.Path(temporary);payload=root/'payload';licenses=payload/'licenses';licenses.mkdir(parents=True)

@@ -176,7 +176,7 @@ jobs:
           (cd artifacts && sha256sum kyna-* install.sh install.ps1 > SHA256SUMS)
       - name: Create GitHub release
         env: { GH_TOKEN: "${{ github.token }}" }
-        run: gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --generate-notes ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+        run: python3 build_tools/packaging/publish_release.py --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --assets artifacts
 
   npm:
     name: Prepare npm installer for owner publication
@@ -246,7 +246,7 @@ jobs:
   marketplace:
     name: Publish VS Code Marketplace extension
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [extension]
+    needs: [extension, release]
     runs-on: ubuntu-latest
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
