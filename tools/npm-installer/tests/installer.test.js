@@ -68,12 +68,13 @@ test('verified payload staging retains libraries and licenses and rejects invali
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'kyna-payload-'));
   const extracted=path.join(directory,'extracted'),vendor=path.join(directory,'vendor');
   try {
-    for(const relative of ['bin/ky','lib/runtime/dependency.so','licenses/dependency.txt','share/kyna/templates/main.ky']) {
+    for(const relative of ['bin/ky','lib/runtime/dependency.so','licenses/dependency.txt','include/kyna/language/native_abi_v2.h','share/kyna/templates/main.ky']) {
       const file=path.join(extracted,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,relative);
     }
     stagePayload(extracted,vendor,'linux');
     assert.equal(fs.readFileSync(path.join(vendor,'lib/runtime/dependency.so'),'utf8'),'lib/runtime/dependency.so');
     assert.ok(fs.statSync(path.join(vendor,'licenses/dependency.txt')).isFile());
+    assert.ok(fs.statSync(path.join(vendor,'include/kyna/language/native_abi_v2.h')).isFile());
     fs.unlinkSync(path.join(extracted,'bin/ky'));
     assert.throws(()=>stagePayload(extracted,vendor,'linux'),/does not contain/);
     assert.equal(fs.readFileSync(path.join(vendor,'bin/ky'),'utf8'),'bin/ky');

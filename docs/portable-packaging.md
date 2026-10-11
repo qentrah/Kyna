@@ -28,7 +28,8 @@ packages with dependencies must use verified archives containing their entire
 closure; a raw adapter dependency describes only that single file. Archive contents
 are rehashed on use, including source wrappers and runtime dependencies.
 
-Bash, PowerShell, and npm installers retain the payload's runtime dependencies.
+Bash, PowerShell, and npm installers retain the payload's runtime dependencies,
+licenses and installed C++ ABI headers. Self-uninstall removes managed SDK headers too.
 The npm adapter downloads the same archive and `SHA256SUMS` for its exact version;
 publication remains an owner action. No package-provided install scripts execute.
 Concurrent installers and crash recovery across the two lockfiles remain outside

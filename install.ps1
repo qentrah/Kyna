@@ -65,7 +65,7 @@ try {
         if (Test-Path "$dependencyDestination.previous") { $installedFiles.Add("bin/$($dependency.Name).previous") }
     }
     $packageRoot = $source.Directory.Parent
-    foreach ($directory in @("lib", "licenses")) {
+    foreach ($directory in @("lib", "licenses", "include")) {
         $runtimeSource = Join-Path $packageRoot.FullName $directory
         if (Test-Path $runtimeSource) {
             $runtimeDestination = Join-Path $Prefix $directory

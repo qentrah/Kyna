@@ -75,6 +75,10 @@ if [ -d "$payload_root/licenses" ]; then
   mkdir -p "$prefix/licenses"
   cp -Rf "$payload_root/licenses"/. "$prefix/licenses/"
 fi
+if [ -d "$payload_root/include" ]; then
+  mkdir -p "$prefix/include"
+  cp -Rf "$payload_root/include"/. "$prefix/include/"
+fi
 if [ -f "$prefix/bin/ky" ]; then cp "$prefix/bin/ky" "$prefix/bin/ky.previous"; fi
 if [ -f "$prefix/bin/kyna" ]; then cp "$prefix/bin/kyna" "$prefix/bin/kyna.previous"; fi
 cp "$ky_source" "$prefix/bin/ky.new"
@@ -89,7 +93,7 @@ if [ -d "$share_source" ]; then cp -R "$share_source"/. "$prefix/share/kyna/"; f
   printf '%s\n' "bin/ky" "bin/kyna"
   [ -f "$prefix/bin/ky.previous" ] && printf '%s\n' "bin/ky.previous"
   [ -f "$prefix/bin/kyna.previous" ] && printf '%s\n' "bin/kyna.previous"
-  for directory in lib/runtime licenses; do
+  for directory in lib/runtime licenses include; do
     if [ -d "$payload_root/$directory" ]; then
       (cd "$payload_root" && find "$directory" -type f)
     fi

@@ -87,7 +87,9 @@ all other C entry points must translate exceptions to structured results.
 The ABI-only C++ helper `kyna/native/adapter.hpp` owns result buffers, checked
 finite numbers, and monotonic resource registries. Examples in `library/gui`,
 `library/geometry`, and `library/ml` demonstrate complete adapters. Install the
-ABI headers with `cmake --install`, then explicitly build an authored adapter with
+ABI headers with `cmake --install` or the verified Bash/PowerShell installer
+(they are retained under the installation prefix’s `include/kyna`). npm retains
+the same headers under its verified vendor payload. Then explicitly build an authored adapter with
 `ky build ./binding --native --output build-binding`. Native package acquisition
 and application staging are described in [Libraries](libraries.md).
 
