@@ -47,3 +47,13 @@ Qt's [QObject lifetime rule](https://doc.qt.io/qt-6/threads-qobject.html). Type
 checking native exports does not create a Qt application. An embedded Qt host
 must provide a `QGuiApplication` and invoke GUI work on its UI thread; incompatible
 hosts and wrong-thread calls produce structured native failures.
+
+On Windows, the first GUI operation pins the adapter image until process exit.
+Qt retains process-global meta-type data after QML engines close; the captured
+Windows crash was in Qt6Qml reading unmapped memory after the Kyna program
+completed. This follows Qt's [PreventUnloadHint plugin policy](https://doc.qt.io/qt-6/qpluginloader.html)
+using [GetModuleHandleExW PIN](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulehandleexw).
+Sessions still release objects, resource handles and callback roots. Metadata-only
+install/check sessions do not pin the module or start Qt. Replace a GUI DLL only
+after its running application exits. Repeated embedded sessions have regression
+coverage; hosted Windows verification of the image-residency fix is pending.

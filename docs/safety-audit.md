@@ -79,3 +79,9 @@ malformed/duplicate/escaping entries and requires exact manifest coverage.
 All 27 release-packaging tests pass, including six checksum rejection subcases.
 Windows core CI at `835ca2d` passes all 57 CTests and portable CLI/installer
 verification ([run](https://github.com/qentrah/Kyna/actions/runs/38111562875)).
+
+The bounded Windows probe now confirms completion of all Kyna statements before
+a Qt6Qml shutdown fault reads unmapped memory. GUI use retains its Windows adapter
+image for Qt's global meta-type registrations; metadata-only loading remains
+unloadable. Session objects and callback roots still close normally, and the
+Qt host regression runs two consecutive sessions. Windows verification is pending.

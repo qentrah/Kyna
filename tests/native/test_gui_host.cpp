@@ -35,7 +35,7 @@ int main(int argc,char **argv) {
   if(mode=="core") { QCoreApplication app(argc,argv);exercise(argv[1],"KNATIVE1005"); }
   else {
     QGuiApplication app(argc,argv);
-    if(mode=="gui") exercise(argv[1],"");
+    if(mode=="gui") { exercise(argv[1],"");exercise(argv[1],""); }
     else {
       assert(mode=="thread");
       std::thread worker([&]{exercise(argv[1],"KNATIVE1007");});worker.join();

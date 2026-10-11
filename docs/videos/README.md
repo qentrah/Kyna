@@ -16,7 +16,7 @@ window; the Android recording contains only the disposable ARM64 emulator displa
   Android 14, moves to the background and resumes, then completes its retained
   timer callback and shuts down. [Application proof markers](kyna-android-arm64-smoke.log)
   record actual startup and completion. The refreshed recording uses the hosted
-  APK from source checkpoint `9d870a8` ([build](https://github.com/qentrah/Kyna/actions/runs/38109511047)),
+  APK from source checkpoint `835ca2d` ([build](https://github.com/qentrah/Kyna/actions/runs/38111562820)),
   rather than a separately compiled demonstration. This does not establish physical-device
   support or desktop geometry/ML support on Android.
 
