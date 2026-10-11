@@ -7,6 +7,36 @@ sys.path.insert(0,str(ROOT/'build_tools/packaging'))
 import notarize_payload, sign_payload, source_notices, portable_runtime
 
 class ReleasePackagingTests(unittest.TestCase):
+    def test_elf_dependency_preserves_loader_soname(self):
+        with patch.object(portable_runtime.sys,'platform','linux'),patch.object(portable_runtime,'run',return_value='libarmadillo.so.15\n'):
+            self.assertEqual(portable_runtime.dependency_filename(pathlib.Path('/sdk/libarmadillo.so.15.2.3')),'libarmadillo.so.15')
+
+    def test_elf_soname_cannot_escape_payload(self):
+        with patch.object(portable_runtime.sys,'platform','linux'),patch.object(portable_runtime,'run',return_value='../outside.so'):
+            with self.assertRaisesRegex(RuntimeError,'Invalid ELF dependency SONAME'):
+                portable_runtime.dependency_filename(pathlib.Path('dependency.so'))
+
+    def test_universal_macho_headers_are_not_dependencies(self):
+        output='/sdk/plugin (architecture x86_64):\n\t@rpath/QtCore (compatibility version 6.0.0, current version 6.7.3)\n/sdk/plugin (architecture arm64):\n\t@rpath/QtCore (compatibility version 6.0.0, current version 6.7.3)\n'
+        with patch.object(portable_runtime,'run',return_value=output):
+            self.assertEqual(portable_runtime.macho_dependencies(pathlib.Path('plugin')),['@rpath/QtCore'])
+
+    def test_universal_macho_rpaths_are_deduplicated(self):
+        section='cmd LC_RPATH\ncmdsize 32\npath @loader_path/../lib (offset 12)\n'
+        with patch.object(portable_runtime,'run',return_value=section+section):
+            self.assertEqual(portable_runtime.macho_rpaths(pathlib.Path('plugin')),['@loader_path/../lib'])
+
+    def test_qt_staging_excludes_debug_bundles(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory=pathlib.Path(temporary);sdk=directory/'sdk';sdk.mkdir()
+            (sdk/'plugin.dylib').write_bytes(b'runtime')
+            (sdk/'plugin.pdb').write_bytes(b'debug')
+            dwarf=sdk/'plugin.dylib.dSYM/Contents/Resources/DWARF/plugin'
+            dwarf.parent.mkdir(parents=True);dwarf.write_bytes(b'debug-mach-o')
+            portable_runtime.copy_regular_tree(sdk,directory/'runtime')
+            self.assertEqual(sorted(p.name for p in (directory/'runtime').iterdir()),['plugin.dylib'])
+            self.assertEqual((directory/'runtime/plugin.dylib').read_bytes(),b'runtime')
+
     def test_hashing_does_not_require_python_311(self):
         with tempfile.TemporaryDirectory() as temporary:
             path=pathlib.Path(temporary)/'binary';path.write_bytes(b'release-payload')

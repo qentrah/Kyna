@@ -1,0 +1,118 @@
+{
+  "schema": "kyna.benchmark/v1",
+  "mode": "check",
+  "commit": "d4dd290a6d7fac48402c34e5a5dcf1411388ceb4",
+  "dirty": true,
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "python": "3.14.3",
+  "cpp_compiler": "Apple clang version 21.0.0 (clang-2100.3.30.1)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode-27.0.0-Beta.5.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "build_configuration": "Release",
+  "binary_sha256": "e5a47ab29316327db92010cb4547a6bbbf022259a539a5104ae01d890dc43ef7",
+  "binary_bytes": 7566928,
+  "repetitions": 5,
+  "warmups": 2,
+  "phase_metrics": true,
+  "command": "check",
+  "cache_policy": "warmups reuse export caches",
+  "measurement": "process wall time including launcher; per-process peak RSS",
+  "workloads": [
+    {
+      "name": "type_heavy",
+      "source_sha256": "2b2685c4402531916fec83322fcb3266d88a6a7ad4a9853bd3c740085bc99124",
+      "output_sha256": "76a50887d8f1c2e9301755428990ad81479ee21c25b43215cf524541e0503269",
+      "kyna": {
+        "wall_seconds": [
+          0.026823792,
+          0.018320375,
+          0.017500875,
+          0.016861,
+          0.016612084
+        ],
+        "median_seconds": 0.017500875,
+        "peak_rss_bytes": [
+          13516800,
+          13582336,
+          13549568,
+          13516800,
+          13549568
+        ],
+        "phases": [
+          {
+            "schema": "kyna.metrics/v1",
+            "executed": false,
+            "phases": [
+              {
+                "phase": "load_lex_parse",
+                "nanoseconds": 1154625
+              },
+              {
+                "phase": "resolve_check",
+                "nanoseconds": 1887208
+              }
+            ]
+          },
+          {
+            "schema": "kyna.metrics/v1",
+            "executed": false,
+            "phases": [
+              {
+                "phase": "load_lex_parse",
+                "nanoseconds": 1086375
+              },
+              {
+                "phase": "resolve_check",
+                "nanoseconds": 1727875
+              }
+            ]
+          },
+          {
+            "schema": "kyna.metrics/v1",
+            "executed": false,
+            "phases": [
+              {
+                "phase": "load_lex_parse",
+                "nanoseconds": 1012750
+              },
+              {
+                "phase": "resolve_check",
+                "nanoseconds": 1794625
+              }
+            ]
+          },
+          {
+            "schema": "kyna.metrics/v1",
+            "executed": false,
+            "phases": [
+              {
+                "phase": "load_lex_parse",
+                "nanoseconds": 949708
+              },
+              {
+                "phase": "resolve_check",
+                "nanoseconds": 1727583
+              }
+            ]
+          },
+          {
+            "schema": "kyna.metrics/v1",
+            "executed": false,
+            "phases": [
+              {
+                "phase": "load_lex_parse",
+                "nanoseconds": 957667
+              },
+              {
+                "phase": "resolve_check",
+                "nanoseconds": 1721083
+              }
+            ]
+          }
+        ]
+      },
+      "cpp": null,
+      "cpp_compile_seconds": 0.6868371249984193,
+      "cpp_binary_bytes": 64232
+    }
+  ]
+}

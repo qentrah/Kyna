@@ -52,3 +52,10 @@ does not guarantee compatibility with older operating systems than the build's
 system ABI. The release jobs use Ubuntu 24.04, macOS 14 ARM64/macOS 15 Intel and
 Windows hosted runners; test the intended OS version before advertising support.
 Local Homebrew candidates are development artifacts, not substitutes for CI builds.
+
+Qt SDK debug bundles (`.dSYM`, `.pdb`) and development-only archives are excluded.
+Universal Mach-O dependency and RPATH headers are deduplicated per architecture.
+ELF dependencies are copied as regular files under their loader SONAME, preserving
+versioned lookup names without archive symlinks. Regression tests cover these
+hosted macOS/Linux ARM64 failures. Dependency binary caches are saved even when
+subsequent packaging fails.

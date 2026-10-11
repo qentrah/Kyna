@@ -64,7 +64,8 @@ jobs:
           version: '6.7.3'
           arch: ${{ matrix.qt-arch }}
           install-deps: true
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: native-cache
         with:
           path: .vcpkg-binary-cache
           key: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
@@ -114,6 +115,12 @@ jobs:
         with:
           name: native-${{ matrix.target }}
           path: release-assets/**
+      - name: Preserve built dependency cache after packaging failures
+        if: always() && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
   android-arm64:
     runs-on: macos-14
     timeout-minutes: 60

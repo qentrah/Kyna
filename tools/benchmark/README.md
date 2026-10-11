@@ -107,3 +107,11 @@ configuration and idle hardware. These process measurements include CLI startup
 and checking; they do not isolate binding overhead. The regression oracle
 separately measures direct C++ prediction versus native conversion/dispatch.
 Hosted timings remain informational.
+
+`type_heavy.kyna` loads eight modules with 512 exported functions, aliases and
+generic interfaces. It invokes both scalar and structural generic contracts and
+compares result `36` with the equivalent C++ declarations. The
+[type-heavy checking checkpoint](../../docs/performance/type-heavy-checkpoint.json)
+records five repetitions after two warmups, phase latency, RSS, binary size and
+source/output fingerprints. It is an informational local checkpoint; checking
+latency is not compared to C++ execution time.

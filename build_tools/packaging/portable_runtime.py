@@ -13,10 +13,14 @@ def digest(path):
         return checksum.hexdigest()
 
 def macho_dependencies(path):
-    return [line.strip().split(' (compatibility', 1)[0] for line in run('otool', '-L', path).splitlines()[1:]]
+    # Universal binaries have one unindented section header per architecture.
+    names = [line.strip().split(' (compatibility', 1)[0]
+             for line in run('otool', '-L', path).splitlines()
+             if line[:1].isspace()]
+    return list(dict.fromkeys(names))
 
 def macho_rpaths(path):
-    return re.findall(r'cmd LC_RPATH\s+cmdsize \d+\s+path (.*?) \(offset', run('otool', '-l', path))
+    return list(dict.fromkeys(re.findall(r'cmd LC_RPATH\s+cmdsize \d+\s+path (.*?) \(offset', run('otool', '-l', path))))
 
 def system_macho(name):
     return name.startswith(('/usr/lib/', '/System/Library/'))
@@ -37,8 +41,11 @@ def resolve_macho(name, source, executable, searches):
 
 def copy_regular_tree(source, destination, recursive=True):
     for path in sorted(source.rglob('*') if recursive else source.iterdir()):
+        relative = path.relative_to(source)
+        if any(part.lower().endswith('.dsym') for part in relative.parts) or path.suffix.lower() in ('.pdb', '.debug', '.ilk', '.exp', '.lib', '.a', '.o'):
+            continue
         if path.is_file():
-            target = destination / path.relative_to(source)
+            target = destination / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             if target.exists(): target.chmod(target.stat().st_mode | 0o200)
             shutil.copy2(path.resolve(), target)
@@ -85,6 +92,16 @@ def native_file(path):
     with path.open('rb') as stream: magic = stream.read(4)
     return magic in (b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\x7fELF') or magic[:2] == b'MZ'
 
+def dependency_filename(source):
+    if sys.platform.startswith('linux'):
+        soname = run('patchelf', '--print-soname', source).strip()
+        if soname:
+            if pathlib.PurePosixPath(soname).name != soname or '\\' in soname or soname in ('.', '..'):
+                raise RuntimeError('Invalid ELF dependency SONAME')
+            return soname
+        return source.name
+    return source.resolve().name
+
 def stage(root, binary_paths, search_paths, qt=None, qt_location=pathlib.Path('qt')):
     root = root.resolve()
     seeds = [root / p for p in binary_paths]
@@ -99,9 +116,10 @@ def stage(root, binary_paths, search_paths, qt=None, qt_location=pathlib.Path('q
     library_dir.mkdir(parents=True, exist_ok=True)
     copies, origins, system = {}, {}, set()
     def copy_dependency(source):
+        filename = dependency_filename(source)
         source = source.resolve()
         if source in copies: return copies[source]
-        destination = library_dir / source.name
+        destination = library_dir / filename
         if sys.platform == 'darwin':
             framework = next((parent for parent in source.parents if parent.name.endswith('.framework')), None)
             if framework:
