@@ -117,3 +117,11 @@ This does not relax extraction's post-validation, link rejection or size bounds.
 The hosted APK at `6530819` passes another Android 14 ARM64 lifecycle recording
 with startup and post-cleanup completion markers; production signing and the
 physical CI runner remain external gates.
+
+Windows at `a77f5b6` passes all 62 raw-build CTests, including complete ML
+archives and malicious path rejection. SDK-isolated relocation exposed a QML
+WorkerScript plugin dependency lookup failure. GUI startup now loads the packaged
+root DLL closure explicitly after the Qt application exists, retaining its images
+for Qt global metadata without modifying the process's search policy. The
+relocated application test continues running with the original SDK directories
+removed from PATH. Final hosted verification of this fix remains required.

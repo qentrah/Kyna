@@ -59,3 +59,12 @@ after its running application exits. Repeated embedded sessions have regression
 coverage. Hosted Windows GUI execution, shutdown and both embedded sessions
 pass at `457054c`; complete installation and relocated packaging remain gated
 on the final matrix.
+
+Packaged Windows GUI startup loads the inventoried sibling DLL closure by
+absolute path after creating/validating `QGuiApplication`, before importing QML.
+Nested QML plugins such as WorkerScript otherwise search their own plugin folder
+and cannot find the package's root DLLs once SDK PATH entries are removed. These
+DLL images follow the same process-exit residency rule as Qt plugin code; session
+objects and callback roots still close normally. This uses
+[LoadLibraryExW's explicit altered search path](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw),
+without changing PATH or the embedding host's global DLL search policy.

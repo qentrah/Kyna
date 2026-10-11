@@ -1,2 +1,6 @@
 #pragma once
-namespace kyna::gui { void retainGuiModule(); }
+#include <filesystem>
+namespace kyna::gui {
+void retainGuiModule();
+void retainGuiRuntimeDependencies(const std::filesystem::path &directory);
+}

@@ -1,5 +1,6 @@
 // Owns adapter-relative Qt plugin and QML paths for installed native packages.
 #include "gui_runtime_paths.hpp"
+#include "gui_module_lifetime.hpp"
 #include <QCoreApplication>
 #include <QQmlEngine>
 #include <filesystem>
@@ -33,6 +34,9 @@ void configurePackagedRuntime(QQmlEngine *engine) {
   if (!std::filesystem::is_directory(runtime)) return;
   const auto plugins = QString::fromStdString((runtime / "plugins").string());
   QCoreApplication::setLibraryPaths({plugins});
-  if (engine) engine->setImportPathList({QString::fromStdString((runtime / "qml").string()), "qrc:/qt/qml"});
+  if (engine) {
+    retainGuiRuntimeDependencies(directory);
+    engine->setImportPathList({QString::fromStdString((runtime / "qml").string()), "qrc:/qt/qml"});
+  }
 }
 }
