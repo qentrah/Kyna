@@ -167,7 +167,7 @@ jobs:
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: release-assets/kyna-*
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.target }}
           path: release-assets/**
@@ -222,7 +222,7 @@ jobs:
           mkdir android-release-assets
           cp build-android/kyna-android-arm64-smoke.apk android-release-assets/
           tar -czf android-release-assets/kyna-android-qt-sources-6.7.3.tar.gz -C android-qt-sources .
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: android-arm64
           path: android-release-assets/*
