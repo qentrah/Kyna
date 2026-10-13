@@ -1,7 +1,7 @@
 # Kyna
 
 <p align="center">
-  <img src="editors/vscode-kyna/assets/kyna-k.svg" width="96" alt="Kyna logo">
+  <img src="docs/assets/qentrah-mark.svg" width="80" alt="Kyna by Qentrah">
 </p>
 
 <p align="center">
@@ -66,6 +66,16 @@ ky run
 
 > Kyna is preview software. Read the [implementation status](docs/implementation-status.md)
 > and [roadmap](ROADMAP.md) before using it in production.
+
+## Built with Kyna
+
+| Application | Kyna behavior | Source and guide |
+| --- | --- | --- |
+| Kyna Music | Local audio, search, playlists, likes, queue and playback decisions | [Source](https://github.com/qentrah/kyna-music) · [Build tour](https://github.com/qentrah/kyna-music/blob/main/docs/build-tour.md) |
+| Native library showcase | GUI callbacks, CGAL hull drawing and mlpack predictions | [Kyna source](examples/native/apps/showcase.ky) · [Recording](docs/videos/README.md) |
+| Hull viewer, mesh inspection and regression | Focused GUI, geometry and ML examples | [Application table](docs/built-with-kyna.md) |
+
+Kyna Music passes Windows x64, Linux x64 and macOS ARM64 application and package tests. See the [application gallery](https://up-to-code.github.io/kyna-docs/docs/built-with-kyna), [screenshots](https://github.com/qentrah/kyna-music/tree/main/docs/screenshots) and [verification](docs/built-with-kyna.md).
 
 ## The language
 
@@ -166,10 +176,13 @@ language feature.
 - [Standard library](docs/stdlib.md)
 - [Libraries and native bindings](docs/libraries.md)
 - [Repository generation and app icons](docs/repository-generation.md)
+- [Applications built with Kyna](docs/built-with-kyna.md)
 - [Kyna Music desktop application](https://github.com/qentrah/kyna-music)
 - [Safety upgrade status](docs/safety-upgrade-status.md)
 - [Installation and releases](docs/distribution.md)
 - [Security](SECURITY.md)
+
+The documentation website uses [Qentrah's current theme](https://qentrah.com/).
 
 Created and maintained by Ahmed Mansour with help from open-source contributors
 and coding agents.

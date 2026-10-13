@@ -4,9 +4,9 @@ The standard library is included. Optional packages use typed C ABI 2 exports;
 C++ objects stay inside adapters and Kyna owns opaque resource leases. Native
 callbacks retain traced Kyna values and run synchronously on the VM/UI thread.
 
-| Package | Implementation | Local verification |
+| Package | Implementation | Verification |
 |---|---|---|
-| `gui` | Qt Quick windows, text, buttons, inputs, row/column, paths, timers, unsubscribe, lifecycle | macOS ARM64 offscreen application and retained callback smoke passed |
+| `gui` | Qt Quick windows, text, buttons, inputs, row/column, paths, timers, unsubscribe, lifecycle | Application, callback and relocation smoke pass on all five desktop CI targets |
 | `geometry` | CGAL orientation, distance, segment intersection, hull; OFF triangle mesh inspection and volume | 2D fixtures and tetrahedron measurements passed |
 | `ml` | mlpack linear regression, typed feature arrays, opaque models | predictions match direct C++ within `1e-12`; dimension and stale-handle failures tested |
 
@@ -86,15 +86,15 @@ use [portable packaging](portable-packaging.md) to build complete archives.
 `ky build ./my-binding --native --output build-binding` explicitly
 runs an authored CMake build. See [Android](android.md) for the ARM64 shell.
 
-Only locally passed targets are verified here. Desktop CI and Android emulator
-gates must pass before their targets are advertised as supported.
+The [complete release rehearsal](https://github.com/qentrah/Kyna/actions/runs/38353364260) passes Linux x64/ARM64, macOS x64/ARM64 and Windows x64 application and relocation checks at `624eb7e`. Android ARM64 cross-compilation passes separately; recorded local Android 14 emulator smoke does not establish physical-device or hosted-emulator coverage.
 
 Local archive preparation is documented in [the native packager](../tools/native-packager/README.md).
 The verified macOS archives contain adapters, checked wrappers and relocated
-dependency closures. Final platform CI and production signing remain release
-gates. [Working app videos](videos/README.md) show GUI, hull, regression and
+dependency closures. Production signing and final dependency-license clearance remain publication gates. [Working app videos](videos/README.md) show GUI, hull, regression and
 Android lifecycle behavior.
 
 ### Application icons
 
 `guiIcon("assets/icon.png")` sets the running GUI application icon from Kyna. The checked wrapper exports `gui.icon`. Invalid or missing images raise `KNATIVE1003`. See [repository generation and icon packaging](repository-generation.md) and the [Kyna Music desktop app](https://github.com/qentrah/kyna-music).
+
+See [applications built with Kyna](built-with-kyna.md) for Kyna Music, the native showcase, hull viewer, mesh inspection and regression examples, with their source and build guides.
