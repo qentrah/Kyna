@@ -1,6 +1,9 @@
+// Owns function signature identity, rendering, assignability, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/signature_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
+#include <functional>
 #include <set>
 #include <string>
 
@@ -8,12 +11,15 @@ namespace kyna::types {
 namespace {
 
 // Intern pool: signatures are immutable and compared structurally, so equal
-// signatures share one instance. The pool intentionally leaks (types live for
-// the process lifetime) to keep returned pointers stable.
+// signatures share one instance. The pool owns types for
+// the process lifetime to keep returned pointers stable, then releases them.
 
 struct SignatureCompare {
   bool operator()(const SignatureType *lhs, const SignatureType *rhs) const {
-    return key(*lhs) < key(*rhs);
+    const auto left = key(*lhs), right = key(*rhs);
+    if (left != right) return left < right;
+    // Receiver identity participates in isIdenticalTo, even though str() omits it.
+    return std::less<TypePtr>{}(lhs->receiverType(), rhs->receiverType());
   }
   static std::string key(const SignatureType &s) {
     std::string k = s.str();
@@ -22,8 +28,8 @@ struct SignatureCompare {
   }
 };
 
-std::set<SignatureType *, SignatureCompare> &sigPool() {
-  static std::set<SignatureType *, SignatureCompare> pool;
+TypePool<SignatureType, SignatureCompare> &sigPool() {
+  static TypePool<SignatureType, SignatureCompare> pool;
   return pool;
 }
 
@@ -38,11 +44,8 @@ SignatureType::SignatureType(std::vector<TypePtr> params, TypePtr returnType, Ty
 
 const SignatureType *SignatureType::make(std::vector<TypePtr> params, TypePtr returnType,
                                          TypePtr receiver, bool isVariadic) {
-  auto *created = new SignatureType(std::move(params), returnType, receiver, isVariadic);
-  auto [it, inserted] = sigPool().insert(created);
-  if (!inserted)
-    delete created;
-  return *it;
+  auto created = std::unique_ptr<SignatureType>(new SignatureType(std::move(params), returnType, receiver, isVariadic));
+  return sigPool().intern(std::move(created));
 }
 
 std::string SignatureType::str() const {

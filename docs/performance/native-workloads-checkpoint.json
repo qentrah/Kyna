@@ -1,0 +1,100 @@
+{
+  "schema": "kyna.native-workloads/v1",
+  "informational": true,
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "warmups": 2,
+  "repetitions": 5,
+  "workloads": {
+    "geometry": {
+      "correct": true,
+      "expected_output": "4000",
+      "iterations": 1000,
+      "source_sha256": "ded016406c338397b8886bf6548167bd344bf31cf7ad9974a4f4aeddf09ed98d",
+      "library_sha256": "a272f0199fbd8966b34d88f5513ab57b8aaae04634ce2965cfe466e9e43bf993",
+      "cpp": {
+        "wall_seconds": [
+          0.004951291,
+          0.004587375,
+          0.004698334,
+          0.004598375,
+          0.004903209
+        ],
+        "median_seconds": 0.004698334,
+        "peak_rss_bytes": [
+          2048000,
+          2048000,
+          2064384,
+          2048000,
+          2048000
+        ]
+      },
+      "kyna": {
+        "wall_seconds": [
+          0.02056275,
+          0.01784325,
+          0.018086833,
+          0.017385041,
+          0.017315708
+        ],
+        "median_seconds": 0.01784325,
+        "peak_rss_bytes": [
+          12697600,
+          12730368,
+          12648448,
+          12730368,
+          12632064
+        ]
+      },
+      "cpp_binary_bytes": 80152,
+      "native_artifact_bytes": 956560,
+      "cli_bytes": 7548144,
+      "ratio": 3.797782362854578
+    },
+    "gui": {
+      "correct": true,
+      "expected_output": "1000",
+      "iterations": 1000,
+      "source_sha256": "48860b2acdab7440fa93eb28624c01a64e5ba1ee60a99b20ca9e547d847d0b46",
+      "library_sha256": "16c95d76ec891bc97927b37c48387aeb01c05cb9567eccde08057cf7092a15ee",
+      "cpp": {
+        "wall_seconds": [
+          0.028835209,
+          0.028115875,
+          0.028360417,
+          0.02812075,
+          0.027857167
+        ],
+        "median_seconds": 0.02812075,
+        "peak_rss_bytes": [
+          20054016,
+          20054016,
+          20021248,
+          20054016,
+          20054016
+        ]
+      },
+      "kyna": {
+        "wall_seconds": [
+          0.047880875,
+          0.038261917,
+          0.0381485,
+          0.038328875,
+          0.03846525
+        ],
+        "median_seconds": 0.038328875,
+        "peak_rss_bytes": [
+          32735232,
+          32604160,
+          32538624,
+          32604160,
+          32686080
+        ]
+      },
+      "cpp_binary_bytes": 70112,
+      "native_artifact_bytes": 123088,
+      "cli_bytes": 7548144,
+      "ratio": 1.3630104104620253
+    }
+  },
+  "measurement_scope": "Process startup, source checking and execution; not isolated binding overhead."
+}

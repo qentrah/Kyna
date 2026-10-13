@@ -1,4 +1,5 @@
 // Implements dynamic slice identity, rendering, assignability, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/slice_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -11,18 +12,15 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<SliceType *, Less> &pool() {
-  static std::set<SliceType *, Less> values;
+TypePool<SliceType, Less> &pool() {
+  static TypePool<SliceType, Less> values;
   return values;
 }
 } // namespace
 
 const SliceType *SliceType::make(TypePtr element) {
-  auto *created = new SliceType(element);
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<SliceType>(new SliceType(element));
+  return pool().intern(std::move(created));
 }
 
 std::string SliceType::str() const { return "array<" + element_->str() + ">"; }

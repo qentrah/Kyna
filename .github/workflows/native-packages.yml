@@ -1,0 +1,248 @@
+name: Optional native packages
+on:
+  workflow_call:
+    inputs:
+      desktop-target:
+        type: string
+        default: all
+      android-emulator-smoke:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      desktop-target:
+        description: Desktop package to verify (all also builds Android)
+        type: choice
+        options: [all, windows-x86_64, darwin-x86_64, darwin-arm64, linux-x86_64, linux-arm64]
+        default: all
+      android-emulator-smoke:
+        description: Run ARM64 application smoke on the dedicated physical Mac runner
+        type: boolean
+        default: false
+  pull_request:
+    paths: ['compiler/**', 'runtime/**', 'library/**', 'sdk/**', 'tools/**', 'build_tools/**', 'tests/**', 'cmake/**', 'CMakeLists.txt', 'vcpkg*', 'editors/vscode-kyna/**', '.github/workflows/**']
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Preserve long native dependency builds and their reusable binary caches.
+  cancel-in-progress: false
+jobs:
+  select-desktop:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        env:
+          REQUESTED_TARGET: ${{ inputs.desktop-target || 'all' }}
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          platforms=[
+            {'os':'ubuntu-24.04','target':'linux-x86_64','qt-arch':'linux_gcc_64'},
+            {'os':'ubuntu-24.04-arm','target':'linux-arm64','system-qt':True},
+            {'os':'windows-latest','target':'windows-x86_64','qt-arch':'win64_msvc2019_64'},
+            {'os':'macos-14','target':'darwin-arm64','qt-arch':'clang_64'},
+            {'os':'macos-15-intel','target':'darwin-x86_64','qt-arch':'clang_64'},
+          ]
+          target=os.environ['REQUESTED_TARGET']
+          selected=platforms if target=='all' else [item for item in platforms if item['target']==target]
+          if not selected:raise SystemExit('Unknown desktop target')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+            output.write('matrix='+json.dumps({'include':selected})+'\n')
+          PYCODE
+  desktop:
+    needs: select-desktop
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-desktop.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Unix native build tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config patchelf
+      - name: Install macOS native build tools
+        if: runner.os == 'macOS'
+        run: brew install autoconf autoconf-archive automake libtool
+      - name: Select the Qt-compatible Intel SDK
+        if: matrix.target == 'darwin-x86_64'
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Install system Qt on Linux ARM64
+        if: matrix.system-qt
+        run: |
+          sudo apt-get install -y qt6-base-dev qt6-declarative-dev qt6-base-dev-tools qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript qml6-module-qtquick qml6-module-qtquick-window
+          echo "QT_ROOT_DIR=/usr/lib/qt6" >> "$GITHUB_ENV"
+      - uses: jurplel/install-qt-action@v4
+        if: ${{ !matrix.system-qt }}
+        with:
+          version: '6.7.3'
+          arch: ${{ matrix.qt-arch }}
+          install-deps: true
+      - uses: actions/cache/restore@v4
+        id: native-cache
+        with:
+          path: .vcpkg-binary-cache
+          key: native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.json
+      - name: Configure optional packages
+        id: native-configure
+        shell: bash
+        run: cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DKYNA_WITH_GUI=ON -DKYNA_WITH_GEOMETRY=ON -DKYNA_WITH_ML=ON '-DVCPKG_MANIFEST_FEATURES=geometry;ml' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+      - run: cmake --build build-native --config Release --parallel 3
+      - name: Install extension runtime dependencies
+        run: npm ci --omit=dev --ignore-scripts --prefix editors/vscode-kyna
+      - name: Diagnose Windows GUI crashes
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+          QT_QUICK_BACKEND: software
+          QT_FORCE_STDERR_LOGGING: '1'
+        run: |
+          @'
+          from pathlib import Path
+          source = Path('examples/native/apps/gui_smoke.ky').read_text()
+          statements = []
+          for index, line in enumerate(source.splitlines()):
+              statements.append('writeFile("build-native/gui-phase.txt", "GUI_PHASE '+str(index)+'");')
+              statements.append(line)
+          statements.append('writeFile("build-native/gui-phase.txt", "GUI_PHASE completed");')
+          Path('build-native/gui-diagnostic.ky').write_text('\n'.join(statements))
+          '@ | python
+          build-native/bin/Release/kyna_windows_process_probe.exe build-native/bin/Release/ky.exe --native-library build-native/native/Release/kyna_gui.dll run build-native/gui-diagnostic.ky
+          $probeExit = $LASTEXITCODE
+          if (Test-Path build-native/gui-phase.txt) { Get-Content build-native/gui-phase.txt }
+          exit $probeExit
+      - run: ctest --test-dir build-native -C Release --output-on-failure
+      - name: Relocate and test native application packages
+        run: python3 build_tools/packaging/stage_delivery.py --build build-native --output portable-delivery --native
+      - name: Sign stable macOS native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: python3 build_tools/packaging/sign_payload.py portable-delivery/gui portable-delivery/geometry portable-delivery/ml
+      - name: Sign stable Windows native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'Windows'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: python3 build_tools/packaging/sign_payload.py portable-delivery/gui portable-delivery/geometry portable-delivery/ml
+      - name: Notarize stable macOS native libraries
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$APPLE_ID" -a -n "$APPLE_TEAM_ID" -a -n "$APPLE_APP_PASSWORD"
+          mkdir notarization
+          cp -R portable-delivery/gui portable-delivery/geometry portable-delivery/ml notarization/
+          python3 build_tools/packaging/notarize_payload.py notarization
+      - name: Archive corresponding Qt sources
+        shell: bash
+        run: mkdir -p release-assets && tar -czf "release-assets/kyna-qt-sources-${{ matrix.target }}.tar.gz" -C build-native qt-source-material
+      - name: Archive verified packages
+        run: python3 build_tools/packaging/archive_delivery.py --delivery portable-delivery --target ${{ matrix.target }} --output release-assets --native-only
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: release-assets/kyna-*
+      - uses: actions/upload-artifact@v6
+        with:
+          name: native-${{ matrix.target }}
+          path: release-assets/**
+      - name: Preserve built dependency cache after packaging failures
+        if: always() && steps.native-configure.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
+  android-arm64:
+    if: ${{ !inputs.desktop-target || inputs.desktop-target == 'all' }}
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager 'ndk;26.1.10909125' 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          host: mac
+          target: android
+          arch: android_arm64_v8a
+          install-deps: true
+          dir: '${{ github.workspace }}/Qt'
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          host: mac
+          target: desktop
+          arch: clang_64
+          dir: '${{ github.workspace }}/Qt'
+      - name: Collect verified Qt notices for the application
+        run: python3 build_tools/packaging/qt_source_notices.py --version 6.7.3 --payload android-notices --cache android-qt-sources --qrc android-notices.qrc
+      - name: Cross-compile runtime and application shell
+        shell: bash
+        run: |
+          "$GITHUB_WORKSPACE/Qt/Qt/6.7.3/android_arm64_v8a/bin/qt-cmake" -S . -B build-android -DCMAKE_BUILD_TYPE=Release -DKYNA_BUILD_TESTS=OFF -DKYNA_BUILD_CLI=OFF -DKYNA_WITH_GUI=ON -DKYNA_ANDROID_SHELL=ON -DKYNA_ANDROID_NOTICES_QRC="$GITHUB_WORKSPACE/android-notices.qrc" -DANDROID_PLATFORM=android-28 -DQT_HOST_PATH="$GITHUB_WORKSPACE/Qt/Qt/6.7.3/macos" -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/26.1.10909125"
+          cmake --build build-android --target apk --parallel 3
+      - name: Sign APK with an ephemeral smoke-test key
+        shell: bash
+        run: python3 tests/native/sign_android_smoke.py "$(find build-android -name '*.apk' -print -quit)" build-android/kyna-android-arm64-smoke.apk
+      - name: Archive matching Qt corresponding source
+        run: |
+          mkdir android-release-assets
+          cp build-android/kyna-android-arm64-smoke.apk android-release-assets/
+          tar -czf android-release-assets/kyna-android-qt-sources-6.7.3.tar.gz -C android-qt-sources .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: android-arm64
+          path: android-release-assets/*
+
+  # Hosted macOS VMs cannot initialize HVF for nested ARM64 emulation. The
+  # application gate runs only on an explicitly provisioned physical runner;
+  # cross-compilation by itself never establishes Android target support.
+  android-emulator-smoke:
+    if: inputs.android-emulator-smoke
+    needs: android-arm64
+    runs-on: [self-hosted, macOS, ARM64, kyna-android]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          name: android-arm64
+          path: android-artifacts
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: arm64-v8a
+          target: google_apis
+          emulator-boot-timeout: 300
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -accel on -no-snapshot
+          script: |
+            adb install "$(find android-artifacts -name kyna-android-arm64-smoke.apk -print -quit)"
+            adb logcat -c
+            adb shell monkey -p org.kyna.application 1
+            python3 tests/native/verify_android_smoke.py

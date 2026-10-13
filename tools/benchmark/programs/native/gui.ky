@@ -1,0 +1,10 @@
+var count: int = 0;
+fn delivered(): void {
+  count = count + 1;
+  if (count == 1000) { guiQuit(); }
+}
+loop (var i: int = 0; i < 1000; i = i + 1) { guiAfter(0, delivered); }
+collectGarbage();
+guiRun();
+if (count != 1000) { error("incorrect event count"); }
+console.log(count);

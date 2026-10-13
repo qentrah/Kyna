@@ -1,4 +1,5 @@
 #include "kyna/execution/runtime_object_model.hpp"
+#include <kyna/execution/numeric_comparison.hpp>
 #include <set>
 #include <sstream>
 
@@ -77,7 +78,8 @@ std::string Value::typeName() const {
         else if constexpr (std::is_same_v<T, char>)
           return "char";
         else if constexpr (std::is_same_v<T, ObjectPtr>)
-          return v && v->klass ? v->klass->declaration.name
+          return v && v->nativeResource ? v->nativeResource->typeName()
+               : v && v->klass ? v->klass->declaration.name
                                : v && !v->vmClassName.empty() ? v->vmClassName : "object";
         else if constexpr (std::is_same_v<T, ArrayPtr>)
           return "array";
@@ -115,13 +117,8 @@ bool Value::isTruthy() const {
 bool Value::equals(const Value &other) const {
   if ((std::holds_alternative<int64_t>(data) || std::holds_alternative<double>(data)) &&
       (std::holds_alternative<int64_t>(other.data) || std::holds_alternative<double>(other.data))) {
-    double left = std::holds_alternative<int64_t>(data)
-                      ? static_cast<double>(std::get<int64_t>(data))
-                      : std::get<double>(data);
-    double right = std::holds_alternative<int64_t>(other.data)
-                       ? static_cast<double>(std::get<int64_t>(other.data))
-                       : std::get<double>(other.data);
-    return left == right;
+    const auto order = compareNumbers(*this, other);
+    return order && *order == 0;
   }
   if (data.index() != other.data.index())
     return false;

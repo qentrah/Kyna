@@ -1,0 +1,10 @@
+import "./type_heavy_modules/module0.ky" as m0;
+import "./type_heavy_modules/module1.ky" as m1;
+import "./type_heavy_modules/module2.ky" as m2;
+import "./type_heavy_modules/module3.ky" as m3;
+import "./type_heavy_modules/module4.ky" as m4;
+import "./type_heavy_modules/module5.ky" as m5;
+import "./type_heavy_modules/module6.ky" as m6;
+import "./type_heavy_modules/module7.ky" as m7;
+var total: int = m0.f00(1) + m1.read00({value: 2}) + m2.f00(3) + m3.read00({value: 4}) + m4.f00(5) + m5.read00({value: 6}) + m6.f00(7) + m7.read00({value: 8});
+print(total);

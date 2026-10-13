@@ -65,6 +65,19 @@ try {
         if (Test-Path "$dependencyDestination.previous") { $installedFiles.Add("bin/$($dependency.Name).previous") }
     }
     $packageRoot = $source.Directory.Parent
+    foreach ($directory in @("lib", "licenses", "include")) {
+        $runtimeSource = Join-Path $packageRoot.FullName $directory
+        if (Test-Path $runtimeSource) {
+            $runtimeDestination = Join-Path $Prefix $directory
+            New-Item -ItemType Directory -Force -Path $runtimeDestination | Out-Null
+            Copy-Item (Join-Path $runtimeSource "*") $runtimeDestination -Recurse -Force
+            foreach ($file in Get-ChildItem $runtimeSource -File -Recurse) {
+                # Substring also works with Windows PowerShell 5.1 / .NET Framework.
+                $relative = $file.FullName.Substring($packageRoot.FullName.Length).TrimStart([char[]]'\/')
+                $installedFiles.Add($relative.Replace('\', '/'))
+            }
+        }
+    }
     $shareSource = Join-Path $packageRoot.FullName "share/kyna"
     $shareDestination = Join-Path $Prefix "share/kyna"
     New-Item -ItemType Directory -Force -Path $shareDestination | Out-Null

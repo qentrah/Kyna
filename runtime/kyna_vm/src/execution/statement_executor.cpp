@@ -1,13 +1,30 @@
 #include "kyna/semantics/modifier_query.hpp"
 #include "kyna/execution/tree_walk_engine.hpp"
 #include <exception>
+#include <algorithm>
 
 namespace kyna {
 Interpreter::Interpreter(RuntimeCapabilities runtimeCapabilities, RuntimeInitializer initialize)
     : global(std::make_shared<Environment>()), environment(global),
       capabilities(std::move(runtimeCapabilities)) {
+  ownedEnvironments.push_back(global);
   if (initialize)
     initialize(*this);
+}
+Interpreter::~Interpreter() {
+  // Clear cells while the heap and native adapters are still alive. Function
+  // and module values may otherwise retain their own environment forever.
+  for (const auto &weak : ownedEnvironments)
+    if (const auto owned = weak.lock())
+      owned->values.clear();
+}
+std::shared_ptr<Environment>
+Interpreter::createEnvironment(std::shared_ptr<Environment> parent) const {
+  if (++environmentsCreated % 64 == 0)
+    std::erase_if(ownedEnvironments, [](const auto &weak) { return weak.expired(); });
+  auto created = std::make_shared<Environment>(std::move(parent));
+  ownedEnvironments.push_back(created);
+  return created;
 }
 Value Interpreter::execute(const std::vector<StmtPtr> &program) {
   Value last;
@@ -54,7 +71,7 @@ void Interpreter::execBlock(const BlockStmt &b, std::shared_ptr<Environment> env
 }
 void Interpreter::exec(const StmtPtr &s) {
   std::visit(
-      [this](const auto &n) {
+      [this, span = s->location](const auto &n) {
         using T = std::decay_t<decltype(n)>;
         if constexpr (std::is_same_v<T, VarDecl>) {
           Value v = n.initializer ? eval(n.initializer) : Value();
@@ -62,7 +79,7 @@ void Interpreter::exec(const StmtPtr &s) {
         } else if constexpr (std::is_same_v<T, ExprStmt>) {
           eval(n.expression);
         } else if constexpr (std::is_same_v<T, BlockStmt>) {
-          execBlock(n, std::make_shared<Environment>(environment));
+          execBlock(n, createEnvironment(environment));
         } else if constexpr (std::is_same_v<T, IfStmt>) {
           if (eval(n.condition).isTruthy())
             exec(n.thenBranch);
@@ -123,7 +140,7 @@ void Interpreter::exec(const StmtPtr &s) {
               pendingFailure = std::current_exception();
             } else {
               auto old = environment;
-              environment = std::make_shared<Environment>(old);
+              environment = createEnvironment(old);
               environment->define(n.catchName, Value(error.value), false);
               try {
                 exec(n.catchBranch);
@@ -138,7 +155,7 @@ void Interpreter::exec(const StmtPtr &s) {
               pendingFailure = std::current_exception();
             } else {
               auto old = environment;
-              environment = std::make_shared<Environment>(old);
+              environment = createEnvironment(old);
               const auto code = error.diagnostic.code == "K0000" ? "KRT2300"
                                                                   : error.diagnostic.code;
               environment->define(
@@ -179,10 +196,11 @@ void Interpreter::exec(const StmtPtr &s) {
           --switchDepth;
         } else if constexpr (std::is_same_v<T, ThrowStmt>) {
           const auto value = eval(n.value);
-          if (const auto *error = std::get_if<ErrorPtr>(&value.data); error && *error)
-            throw RuntimeThrownError(*error);
-          throw RuntimeThrownError(
+          const auto *error = std::get_if<ErrorPtr>(&value.data);
+          RuntimeThrownError thrown(error && *error ? *error :
               objectHeap.allocateError(value.display(), "KRT2301", value));
+          thrown.frames.push_back({"<throw>", span});
+          throw thrown;
         } else if constexpr (std::is_same_v<T, BreakStmt>) {
           if (loopDepth == 0 && switchDepth == 0)
             throw KynaError({"break must be inside a switch or loop", {1, 1}, false});
@@ -236,7 +254,7 @@ Value Interpreter::invoke(const FunctionPtr &f, const std::vector<Value> &args,
   auto old = environment;
   auto oldFlow = flow;
   flow = {};
-  environment = std::make_shared<Environment>(f->closure);
+  environment = createEnvironment(f->closure);
   if (thisObject) {
     environment->define("self", Value(thisObject), false);
     if (thisObject->klass && thisObject->klass->parent)
@@ -253,6 +271,12 @@ Value Interpreter::invoke(const FunctionPtr &f, const std::vector<Value> &args,
   } catch (KynaError &error) {
     const auto location = f->declaration.body ? f->declaration.body->location : SourceSpan{};
     error.diagnostic.callFrames.push_back({f->declaration.name, location});
+    flow = oldFlow;
+    environment = old;
+    throw;
+  } catch (RuntimeThrownError &error) {
+    const auto location = f->declaration.body ? f->declaration.body->location : SourceSpan{};
+    error.frames.push_back({f->declaration.name, location});
     flow = oldFlow;
     environment = old;
     throw;

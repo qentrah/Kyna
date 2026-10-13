@@ -53,7 +53,7 @@ std::uint64_t sourceFingerprint(const fs::path &root) {
     if (!entry.is_regular_file(ec))
       continue;
     const auto name = entry.path().filename().string();
-    if (entry.path().extension() != ".kyna" && name != "kyna.toml" && name != "kyna.lock")
+    if (entry.path().extension() != ".kyna" && entry.path().extension() != ".ky" && name != "kyna.toml" && name != "kyna.lock")
       continue;
     const auto stamp = entry.last_write_time(ec).time_since_epoch().count();
     fingerprint ^= static_cast<std::uint64_t>(stamp);
@@ -157,7 +157,7 @@ std::uint64_t windowsSourceFingerprint(const fs::path &root) {
     if (!entry.is_regular_file(ec))
       continue;
     const auto name = entry.path().filename().string();
-    if (entry.path().extension() != ".kyna" && name != "kyna.toml" && name != "kyna.lock")
+    if (entry.path().extension() != ".kyna" && entry.path().extension() != ".ky" && name != "kyna.toml" && name != "kyna.lock")
       continue;
     fingerprint ^=
         static_cast<std::uint64_t>(entry.last_write_time(ec).time_since_epoch().count());

@@ -13,3 +13,9 @@ fake-store-output/
 weather-output/
 *.kyc
 examples/my-app/
+
+# Generated Python verification caches
+__pycache__/
+*.py[cod]
+aqtinstall.log
+node_modules/

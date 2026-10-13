@@ -5,6 +5,25 @@
 #include <cassert>
 
 int main() {
+  // A recursive function owns its defining environment; session teardown must
+  // break the environment/function cycle, including nested callback closures.
+  std::weak_ptr<kyna::Environment> releasedGlobals;
+  std::weak_ptr<kyna::Environment> releasedClosure;
+  std::weak_ptr<kyna::Function> releasedFunction;
+  {
+    kyna::Interpreter session;
+    session.execute(kyna::Parser(kyna::lex(
+        "fn factory(): any { fn callback(): void { return; } return callback; }"
+        "var saved = factory();")).parse());
+    releasedGlobals = session.globals();
+    const auto callback = std::get<kyna::FunctionPtr>(session.globals()->get("saved").value.data);
+    releasedFunction = callback;
+    releasedClosure = callback->closure;
+  }
+  assert(releasedGlobals.expired());
+  assert(releasedFunction.expired());
+  assert(releasedClosure.expired());
+
   auto program =
       kyna::Parser(kyna::lex("class Node { public next: Node?; }"
                              "fn make(): void { var n = new Node(); n.next = n; return; }"

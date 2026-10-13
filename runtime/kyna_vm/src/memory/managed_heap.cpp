@@ -1,11 +1,44 @@
+// Owns managed object tracing and temporary/retained root lifetimes.
 #include "kyna/execution/runtime_object_model.hpp"
 #include <algorithm>
 #include <deque>
 #include <set>
+#include <thread>
+#include <stdexcept>
 
 namespace kyna {
 
-Heap::~Heap() = default;
+struct Heap::RetainedRoots {
+  std::thread::id thread{std::this_thread::get_id()};
+  std::vector<std::weak_ptr<Value>> values;
+  std::size_t retainsSincePrune{0};
+};
+Heap::~Heap() { retainedRoots.reset(); }
+
+bool Heap::RetainedRoot::valid() const { return stored && !owner.expired(); }
+const Value &Heap::RetainedRoot::value() const {
+  const auto roots = owner.lock();
+  if (!roots || !stored) throw std::runtime_error("retained value belongs to a closed runtime");
+  if (roots->thread != std::this_thread::get_id())
+    throw std::runtime_error("retained values must be accessed on the runtime thread");
+  return *stored;
+}
+Heap::RetainedRoot Heap::retain(const Value &value) {
+  if (!retainedRoots) retainedRoots = std::make_shared<RetainedRoots>();
+  if (retainedRoots->thread != std::this_thread::get_id())
+    throw std::runtime_error("retained values must be created on the runtime thread");
+  // Scalar-only callbacks may never trigger object GC. Bound their expired
+  // root metadata independently of managed-object allocation thresholds.
+  if (++retainedRoots->retainsSincePrune >= 64) {
+    std::erase_if(retainedRoots->values, [](const auto &weak) { return weak.expired(); });
+    retainedRoots->retainsSincePrune = 0;
+  }
+  RetainedRoot result;
+  result.stored = std::make_shared<Value>(value);
+  result.owner = retainedRoots;
+  retainedRoots->values.push_back(result.stored);
+  return result;
+}
 
 Heap::RootScope::RootScope(Heap &owner)
     : heap(owner), firstRoot(owner.temporaryRoots.size()) {}
@@ -92,6 +125,16 @@ void Heap::collectRoots(const HeapRoots &roots) {
   for (const auto *value : temporaryRoots)
     if (value)
       pendingValues.push_back(*value);
+
+  if (retainedRoots) {
+    retainedRoots->retainsSincePrune = 0;
+    std::erase_if(retainedRoots->values, [&](const auto &weak) {
+      auto value = weak.lock();
+      if (!value) return true;
+      pendingValues.push_back(*value);
+      return false;
+    });
+  }
 
   while (!pendingEnvironments.empty() || !pendingValues.empty() ||
          !pendingCaptureCells.empty()) {
@@ -215,7 +258,8 @@ void Heap::setThreshold(std::size_t threshold) {
 HeapStats Heap::stats() const {
   return {live(),          allocatedCount, reclaimedCount, collectionCount,
           peakLiveCount, nextThreshold,   objects.size(), arrays.size(),
-          captureCells.size(), closures.size(), boundMethods.size(), errors.size()};
+          captureCells.size(), closures.size(), boundMethods.size(), errors.size(),
+          retainedRoots ? retainedRoots->values.size() : 0};
 }
 
 } // namespace kyna

@@ -1,5 +1,7 @@
 #include "expression_operations.hpp"
 #include <limits>
+#include <kyna/execution/numeric_comparison.hpp>
+#include "../validators/bytecode_numeric_operations.hpp"
 
 namespace kyna {
 
@@ -29,6 +31,21 @@ std::string decodeExpressionLiteral(const std::string &literal) {
 Value evaluateExpressionBinary(TokenKind op, const Value &a, const Value &b, SourceSpan span) {
   if (op == TokenKind::EqualEqual) return Value(a.equals(b));
   if (op == TokenKind::BangEqual) return Value(!a.equals(b));
+  if ((op == TokenKind::Plus || op == TokenKind::Minus || op == TokenKind::Star) &&
+      std::holds_alternative<int64_t>(a.data) && std::holds_alternative<int64_t>(b.data)) {
+    std::int64_t result = 0;
+    const auto opcode = op == TokenKind::Plus ? OpCode::Add : op == TokenKind::Minus ? OpCode::Subtract : OpCode::Multiply;
+    if (!checkedBytecodeIntegerArithmetic(opcode, std::get<int64_t>(a.data), std::get<int64_t>(b.data), result))
+      throw KynaError({"integer overflow while evaluating arithmetic", span, false, "KRT2204"});
+    return Value(result);
+  }
+  if (op == TokenKind::Less || op == TokenKind::LessEqual || op == TokenKind::Greater || op == TokenKind::GreaterEqual) {
+    const auto order = compareNumbers(a, b);
+    const bool numbers = (std::holds_alternative<int64_t>(a.data) || std::holds_alternative<double>(a.data)) &&
+                         (std::holds_alternative<int64_t>(b.data) || std::holds_alternative<double>(b.data));
+    if (!numbers) throw KynaError({"comparison requires numbers", span, false, "KRT2200"});
+    return Value(order && (op == TokenKind::Less ? *order < 0 : op == TokenKind::LessEqual ? *order <= 0 : op == TokenKind::Greater ? *order > 0 : *order >= 0));
+  }
   if (op == TokenKind::Plus) {
     if (std::holds_alternative<std::string>(a.data) || std::holds_alternative<std::string>(b.data))
       return Value(a.display() + b.display());

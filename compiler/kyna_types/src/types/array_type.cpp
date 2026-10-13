@@ -1,3 +1,4 @@
+#include "type_pool.hpp"
 // Implements fixed-length array identity, rendering, assignability, and interning.
 #include <kyna/types/array_type.hpp>
 #include <kyna/types/basic_type.hpp>
@@ -11,8 +12,8 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<ArrayType *, Less> &pool() {
-  static std::set<ArrayType *, Less> values;
+TypePool<ArrayType, Less> &pool() {
+  static TypePool<ArrayType, Less> values;
   return values;
 }
 bool acceptsStructured(const Type *target) {
@@ -21,11 +22,8 @@ bool acceptsStructured(const Type *target) {
 } // namespace
 
 const ArrayType *ArrayType::make(std::size_t length, TypePtr element) {
-  auto *created = new ArrayType(length, element);
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<ArrayType>(new ArrayType(length, element));
+  return pool().intern(std::move(created));
 }
 
 std::string ArrayType::str() const {

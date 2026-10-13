@@ -63,7 +63,8 @@ print("after-error", changing);
 """
     repl = invoke(cli, "repl", stdin=repl_source)
     require(repl.returncode == 0, "REPL process failed")
-    require("Kyna 1.0.0" in repl.stdout and "interactive playground" in repl.stdout,
+    version = invoke(cli, "--version").stdout.split()[1]
+    require(f"Kyna {version}" in repl.stdout and "interactive playground" in repl.stdout,
             "REPL banner does not match the CLI version")
     require("Left/Right" in repl.stdout and "Left click" in repl.stdout,
             "REPL did not expose its keyboard and mouse control list")

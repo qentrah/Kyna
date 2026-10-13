@@ -1,0 +1,11 @@
+var points = [[0.0,0.0],[100.0,0.0],[100.0,100.0],[0.0,100.0],[50.0,50.0]];
+var count: int = 0;
+loop (var i: int = 0; i < 1000; i = i + 1) {
+  var hull = geometryHull(points);
+  if (len(hull) != 4 || hull[0][0] != 0.0 || hull[0][1] != 0.0 ||
+      hull[1][0] != 100.0 || hull[1][1] != 0.0 ||
+      hull[2][0] != 100.0 || hull[2][1] != 100.0 ||
+      hull[3][0] != 0.0 || hull[3][1] != 100.0) { error("incorrect hull"); }
+  count = count + len(hull);
+}
+console.log(count);

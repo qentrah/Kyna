@@ -1,0 +1,39 @@
+# The handlers and application logic run in Kyna; native adapters own their objects.
+var window = guiWindow("Kyna: GUI, CGAL and mlpack", 780, 840);
+var layout = guiColumn(window);
+var heading = guiText(layout, "Kyna native libraries — live application");
+var input = guiInput(layout, "Hello from Kyna");
+var actions = guiRow(layout);
+var hullChecked = false;
+var regressionChecked = false;
+var inputChecked = false;
+fn inspectHull(): void {
+  if (hullChecked) { return; }
+  hullChecked = true;
+  var points = geometryHull([[20.0,20.0],[300.0,30.0],[200.0,200.0],[150.0,50.0],[40.0,250.0]]);
+  guiText(layout, "CGAL exact-predicate hull: " + len(points) + " vertices");
+  console.log("HULL_OK", len(points));
+}
+fn predict(): void {
+  if (regressionChecked) { return; }
+  regressionChecked = true;
+  var model = mlTrain([[1.0,2.0,3.0]], [3.0,5.0,7.0]);
+  var result = mlPredict(model, [[4.0,5.0]]);
+  guiText(layout, "mlpack predictions: " + result);
+  console.log("REGRESSION_OK", result);
+  mlDispose(model);
+}
+fn readInput(): void {
+  if (inputChecked) { return; }
+  inputChecked = true;
+  guiText(layout, "Input callback: " + guiRead(input));
+  console.log("INPUT_OK", guiRead(input));
+}
+var hullButton = guiButton(actions, "Verify CGAL hull", inspectHull);
+var mlButton = guiButton(actions, "Train & predict", predict);
+var inputButton = guiButton(actions, "Read input", readInput);
+var hull = geometryHull([[20.0,20.0],[300.0,30.0],[200.0,200.0],[150.0,50.0],[40.0,250.0]]);
+var drawing = guiDraw(layout, hull, "#2368bd");
+collectGarbage();
+guiRun();
+console.log("SHOWCASE_SHUTDOWN_OK");

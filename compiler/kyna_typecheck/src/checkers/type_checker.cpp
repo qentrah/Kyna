@@ -1,5 +1,6 @@
 #include "check_helpers.hpp"
 #include <kyna/semantics/program_analyzer.hpp>
+#include <cmath>
 
 namespace kyna {
 
@@ -14,8 +15,12 @@ TypeRef Analyzer::expr(const ExprPtr &e) {
           case Literal::Kind::Bool:
             return analyzerNamedType("bool");
           case Literal::Kind::Int:
+            try { std::stoll(n.value); }
+            catch (const std::exception &) { error("integer literal is outside the signed 64-bit range", e->location, "KSEM1604", "use a value from -9223372036854775808 to 9223372036854775807"); }
             return analyzerNamedType("int");
           case Literal::Kind::Float:
+            try { if (!std::isfinite(std::stod(n.value))) throw std::out_of_range("float literal"); }
+            catch (const std::exception &) { error("floating-point literal is outside the finite double range", e->location, "KSEM1604", "use a finite representable floating-point literal"); }
             return analyzerNamedType("float");
           case Literal::Kind::String:
             return analyzerNamedType("str");
@@ -23,12 +28,23 @@ TypeRef Analyzer::expr(const ExprPtr &e) {
             return analyzerNamedType("char");
           }
         } else if constexpr (std::is_same_v<T, Variable>) {
+          if (const auto binding = bindingScope(n.name);
+              binding && binding->types[n.name].name.starts_with("type:")) {
+            error("type-only import '" + n.name + "' cannot be used as a value", e->location,
+                  "KSEM1504", "use the name in a type annotation");
+            return analyzerNamedType("void");
+          }
+          if (aliases.contains(n.name) || interfaces.find(n.name)) {
+            error("type '" + n.name + "' cannot be used as a value", e->location,
+                  "KSEM1504", "use the name in a type annotation");
+            return analyzerNamedType("void");
+          }
           if (!defined(n.name) && !interactive)
             error("undefined name '" + n.name + "'", e->location);
+          if (functions.contains(n.name))
+            return functionType(functions.at(n.name), e->location);
           if (auto bs = bindingScope(n.name))
             return bs->types[n.name];
-          if (functions.contains(n.name))
-            return analyzerNamedType("func");
           if (classes.contains(n.name))
             return analyzerNamedType("class:" + n.name);
           return analyzerNamedType("any");

@@ -1,4 +1,5 @@
 kyna_add_module(kyna_types SOURCES
+  src/types/type_pool.hpp
   src/types/type_model.cpp
   src/types/basic_type.cpp
   src/types/universe.cpp

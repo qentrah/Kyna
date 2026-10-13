@@ -1,3 +1,4 @@
+// Owns structural interface conformance, generic substitution, and inherited contracts.
 #include "kyna/semantics/program_analyzer.hpp"
 #include "kyna/semantics/modifier_query.hpp"
 #include <algorithm>
@@ -84,28 +85,34 @@ bool Analyzer::classConforms(const ClassDecl &klass, const InterfaceDecl &contra
     if (effective.optionalFields.contains(required.name))
       continue;
     const auto *field = findField(klass, required.name);
-    if (!field || !compatible(substitute(required.type, contract, contractRef), field->type)) {
+    if (!field || !compatible(resolveType(substitute(required.type, contract, contractRef)), resolveType(field->type))) {
       conforms = false;
       if (location.known())
         error("class '" + klass.name + "' does not provide compatible field '" + required.name +
                   "' required by interface '" + contract.name + "'",
-              location);
+              location, "KSEM1506", "match the interface's required public field type");
     }
   }
   for (const auto &required : effective.methods) {
     const auto *method = findMethod(klass, required.name);
     FunctionDecl substitutedRow = required;
     for (auto &param : substitutedRow.params)
-      param.type = substitute(param.type, contract, contractRef);
-    substitutedRow.returnType = substitute(required.returnType, contract, contractRef);
-    if (!method || !sameParameters(*method, substitutedRow) ||
-        !compatible(substitutedRow.returnType, method->returnType) ||
+      param.type = resolveType(substitute(param.type, contract, contractRef));
+    substitutedRow.returnType = resolveType(substitute(required.returnType, contract, contractRef));
+    FunctionDecl actual;
+    if (method) {
+      actual = *method;
+      for (auto &param : actual.params) param.type = resolveType(param.type);
+      actual.returnType = resolveType(actual.returnType);
+    }
+    if (!method || !sameParameters(actual, substitutedRow) ||
+        !compatible(substitutedRow.returnType, actual.returnType) ||
         visibility(method->modifiers) != 2) {
       conforms = false;
       if (location.known())
         error("class '" + klass.name + "' does not provide compatible public method '" +
                   required.name + "' required by interface '" + contract.name + "'",
-              location);
+              location, "KSEM1506", "match the interface's required public method signature");
     }
   }
   return conforms;
@@ -113,32 +120,15 @@ bool Analyzer::classConforms(const ClassDecl &klass, const InterfaceDecl &contra
 
 TypeRef Analyzer::substitute(const TypeRef &type, const InterfaceDecl &contract,
                              const TypeRef &contractRef) const {
-  if (contractRef.typeArgs.empty())
-    return type;
-  auto replace = [&](const TypeRef &value) -> TypeRef {
-    for (std::size_t index = 0; index < contract.typeParams.size() &&
-                                index < contractRef.typeArgs.size();
-         ++index)
-      if (value.name == contract.typeParams[index]) {
-        TypeRef result = contractRef.typeArgs[index];
-        return result;
-      }
-    return value;
-  };
-  TypeRef result = type;
-  result.name = replace(type).name;
-  result.nullable = type.nullable;
-  result.typeArgs.clear();
-  for (const auto &arg : type.typeArgs)
-    result.typeArgs.push_back(substitute(arg, contract, contractRef));
-  result.unionTypes.clear();
-  for (const auto &u : type.unionTypes)
-    result.unionTypes.push_back(substitute(u, contract, contractRef));
-  return result;
+  std::map<std::string, TypeRef> mapping;
+  for (std::size_t index = 0; index < contract.typeParams.size() &&
+                              index < contractRef.typeArgs.size(); ++index)
+    mapping[contract.typeParams[index]] = contractRef.typeArgs[index];
+  return substituteContractType(type, mapping);
 }
 
 bool Analyzer::objectConforms(const ObjectExpr &object, const InterfaceDecl &contract,
-                              SourceLocation location) {
+                              const TypeRef &contractRef, SourceLocation location) {
   std::vector<std::string> stack;
   const auto effective = effectiveContract(contract, stack);
   bool conforms = true;
@@ -147,11 +137,21 @@ bool Analyzer::objectConforms(const ObjectExpr &object, const InterfaceDecl &con
                                     [&](const auto &f) { return f.name == required.name; });
     if (found == object.fields.end() && effective.optionalFields.contains(required.name))
       continue;
-    if (found == object.fields.end() || !compatible(required.type, expr(found->value))) {
+    bool matches = false;
+    if (found != object.fields.end()) {
+      const auto expected = resolveType(substitute(required.type, contract, contractRef));
+      auto actual = expr(found->value);
+      if (const auto *nestedContract = interfaces.find(expected.name))
+        if (const auto *nestedObject = std::get_if<ObjectExpr>(&found->value->node))
+          if (objectConforms(*nestedObject, *nestedContract, expected, found->value->location))
+            actual = expected;
+      matches = compatible(expected, actual);
+    }
+    if (!matches) {
       conforms = false;
       error("object does not provide compatible field '" + required.name +
                 "' required by interface '" + contract.name + "'",
-            location);
+            location, "KSEM1506", "provide each required field with the declared type");
     }
   }
   if (!effective.methods.empty() || !effective.callSignatures.empty()) {

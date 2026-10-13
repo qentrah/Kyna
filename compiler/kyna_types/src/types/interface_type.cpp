@@ -1,4 +1,5 @@
 // Implements structural interface method-set identity and satisfaction.
+#include "type_pool.hpp"
 #include <kyna/types/interface_type.hpp>
 #include <kyna/types/basic_type.hpp>
 #include <kyna/types/named_type.hpp>
@@ -14,8 +15,8 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<InterfaceType *, Less> &pool() {
-  static std::set<InterfaceType *, Less> values;
+TypePool<InterfaceType, Less> &pool() {
+  static TypePool<InterfaceType, Less> values;
   return values;
 }
 
@@ -49,11 +50,8 @@ const InterfaceType *InterfaceType::make(std::vector<InterfaceMethod> methods,
   for (const auto &method : methods)
     if (!names.insert(method.name).second)
       throw std::invalid_argument("interface contains duplicate method '" + method.name + "'");
-  auto *created = new InterfaceType(std::move(methods), std::move(embedded));
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<InterfaceType>(new InterfaceType(std::move(methods), std::move(embedded)));
+  return pool().intern(std::move(created));
 }
 
 bool InterfaceType::isSatisfiedBy(const Type *candidate) const {

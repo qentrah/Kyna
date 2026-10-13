@@ -1,18 +1,43 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "kyna",
-  "version-semver": "1.0.0",
+  "version-semver": "1.0.16",
   "builtin-baseline": "63feddf004cc39169a8b0b7f79c2eba5065d6140",
   "dependencies": [
     "boost-asio",
     "boost-beast",
     "cli11",
-    { "name": "curl", "features": ["ssl"] },
+    {
+      "name": "curl",
+      "features": [
+        "ssl"
+      ]
+    },
     "ftxui",
     "openssl",
     "libpq",
     "pugixml",
     "tomlplusplus",
     "utf8proc"
-  ]
+  ],
+  "features": {
+    "gui": {
+      "description": "Optional Qt Quick adapter",
+      "dependencies": [
+        "qtdeclarative"
+      ]
+    },
+    "geometry": {
+      "description": "Optional CGAL adapter",
+      "dependencies": [
+        "cgal"
+      ]
+    },
+    "ml": {
+      "description": "Optional mlpack regression adapter",
+      "dependencies": [
+        "mlpack"
+      ]
+    }
+  }
 }

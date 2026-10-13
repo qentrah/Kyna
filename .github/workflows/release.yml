@@ -19,13 +19,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, target: linux-x86_64, archive: tar }
+          - { os: ubuntu-24.04, target: linux-x86_64, archive: tar }
           - { os: ubuntu-24.04-arm, target: linux-arm64, archive: tar }
           - { os: macos-15-intel, target: darwin-x86_64, archive: tar }
           - { os: macos-14, target: darwin-arm64, archive: tar }
           - { os: windows-latest, target: windows-x86_64, archive: zip }
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/cache/restore@v4
+        id: core-cache
+        with:
+          path: .vcpkg-binary-cache
+          key: core-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+            native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -34,7 +44,32 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test
+        run: npm ci --omit=dev --ignore-scripts --prefix editors/vscode-kyna
+      - name: Test compiler and tooling
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Verify Debug and sanitizer configurations
+        if: matrix.target == 'linux-x86_64'
+        shell: bash
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          for configuration in Debug Sanitizers; do
+            directory="build-${configuration,,}"
+            sanitizer=OFF
+            if [ "$configuration" = Sanitizers ]; then sanitizer=ON; fi
+            cmake -S . -B "$directory" -DCMAKE_BUILD_TYPE=Debug -DKYNA_ENABLE_SANITIZERS="$sanitizer" -DKYNA_FETCH_DEPENDENCIES=OFF -DVCPKG_MANIFEST_INSTALL=OFF -DVCPKG_INSTALLED_DIR="$GITHUB_WORKSPACE/build/vcpkg_installed" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+            cmake --build "$directory" --parallel 3
+            ctest --test-dir "$directory" --output-on-failure
+          done
+      - name: Install ELF relocation tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: Stage and verify portable installation
+        run: python3 build_tools/packaging/stage_delivery.py --build build --output delivery
+      - name: Select verified payload
+        shell: bash
+        run: mv delivery/cli package
       - name: Sign macOS executables
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'macOS'
         env:
@@ -42,25 +77,26 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         shell: bash
-        run: |
-          test -n "$CERTIFICATE_BASE64" -a -n "$CERTIFICATE_PASSWORD" -a -n "$SIGNING_IDENTITY"
-          echo "$CERTIFICATE_BASE64" | base64 --decode > signing.p12
-          security create-keychain -p kyna-signing build.keychain
-          security import signing.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k kyna-signing build.keychain
-          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" build/bin/ky build/bin/kyna
+        run: python3 build_tools/packaging/sign_payload.py package
       - name: Sign Windows executables
         if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && runner.os == 'Windows'
         env:
           CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        shell: pwsh
+        shell: bash
+        run: python3 build_tools/packaging/sign_payload.py package
+      - name: Refresh signed binary inventory
+        shell: bash
         run: |
-          if (-not $env:CERTIFICATE_BASE64 -or -not $env:CERTIFICATE_PASSWORD) { throw "Windows signing secrets are required for stable releases." }
-          [IO.File]::WriteAllBytes("signing.pfx", [Convert]::FromBase64String($env:CERTIFICATE_BASE64))
-          & (Get-ChildItem "C:/Program Files (x86)/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f signing.pfx /p $env:CERTIFICATE_PASSWORD build/bin/Release/ky.exe build/bin/Release/kyna.exe
-      - name: Stage installation
-        run: cmake --install build --config Release --prefix package
+          python3 - <<'PYCODE'
+          import json,pathlib,sys
+          sys.path.insert(0, "build_tools/packaging")
+          from portable_runtime import digest
+          root=pathlib.Path('package');file=root/'runtime-inventory.json';inventory=json.loads(file.read_text())
+          for binary in inventory['binaries']:
+              binary['sha256']=digest(root/binary['path'])
+          file.write_text(json.dumps(inventory,indent=2)+'\n')
+          PYCODE
       - name: Create Unix archive
         if: matrix.archive == 'tar'
         shell: bash
@@ -76,10 +112,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         shell: bash
-        run: |
-          test -n "$APPLE_ID" -a -n "$APPLE_TEAM_ID" -a -n "$APPLE_APP_PASSWORD"
-          ditto -c -k --keepParent package kyna-notarization.zip
-          xcrun notarytool submit kyna-notarization.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+        run: python3 build_tools/packaging/notarize_payload.py package
       - uses: actions/attest-build-provenance@v4
         with:
           subject-path: kyna-${{ matrix.target }}.*
@@ -87,6 +120,11 @@ jobs:
         with:
           name: kyna-${{ matrix.target }}
           path: kyna-${{ matrix.target }}.*
+      - uses: actions/cache/save@v4
+        if: always() && steps.core-cache.outputs.cache-hit != 'true'
+        with:
+          path: .vcpkg-binary-cache
+          key: ${{ steps.core-cache.outputs.cache-primary-key }}
 
   extension:
     name: VS Code extension
@@ -108,17 +146,85 @@ jobs:
           name: kyna-vscode-extension
           path: editors/vscode-kyna/kyna-language-support-*.vsix
 
+  native:
+    name: Verify and package optional libraries
+    uses: ./.github/workflows/native-packages.yml
+    with:
+      android-emulator-smoke: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') && vars.KYNA_ANDROID_RUNNER_ENABLED == 'true' }}
+    secrets: inherit
+
+  candidate:
+    name: Assemble verified release candidate without publication
+    if: github.event_name == 'workflow_dispatch'
+    needs: [cli, extension, native]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, package-manager-cache: false }
+      - uses: actions/download-artifact@v8
+        with: { path: artifacts, merge-multiple: true }
+      - name: Test and pack the npm adapter for owner publication
+        working-directory: tools/npm-installer
+        run: |
+          npm test
+          npm pack --ignore-scripts
+      - name: Assemble complete matching assets and verify every checksum
+        env:
+          CANDIDATE_COMMIT: ${{ github.sha }}
+          CANDIDATE_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cp install.sh install.ps1 docs/releases/v1.0.16.md artifacts/
+          cp tools/npm-installer/*.tgz artifacts/
+          python3 - <<'PYCODE'
+          import json,os,pathlib,re,sys
+          sys.path.insert(0,'build_tools/packaging')
+          from portable_runtime import digest
+          from publish_release import verify_assets
+          root=pathlib.Path('artifacts')
+          version=re.search(r'project\(kyna VERSION ([0-9.]+)',pathlib.Path('CMakeLists.txt').read_text())[1]
+          npm=json.loads(pathlib.Path('tools/npm-installer/package.json').read_text())
+          if npm['version']!=version:raise SystemExit('npm/release version mismatch')
+          required={'install.sh','install.ps1','kyna-android-arm64-smoke.apk','kyna-android-qt-sources-6.7.3.tar.gz',
+                    f'kyna-language-support-{version}.vsix',f'kyna-language-cli-{version}.tgz'}
+          for target in ('linux-x86_64','linux-arm64','darwin-x86_64','darwin-arm64','windows-x86_64'):
+              required.add(f'kyna-{target}.'+('zip' if target.startswith('windows') else 'tar.gz'))
+              required.add(f'kyna-qt-sources-{target}.tar.gz')
+              required.update(f'kyna-{package}-{version}-{target}.tar.gz' for package in ('gui','geometry','ml'))
+          missing=required-{path.name for path in root.iterdir()}
+          if missing:raise SystemExit('Missing release assets: '+', '.join(sorted(missing)))
+          (root/'RELEASE-CANDIDATE.json').write_text(json.dumps({'schema':'kyna.release-candidate/v1','version':version,
+              'source_commit':os.environ['CANDIDATE_COMMIT'],'verification_run':os.environ['CANDIDATE_RUN'],
+              'published':False,'production_signed':False,'android_key':'ephemeral smoke test',
+              'npm_publication':'owner only'},indent=2)+'\n')
+          files=sorted(path for path in root.iterdir() if path.name!='SHA256SUMS')
+          if any(not path.is_file() or path.is_symlink() for path in files):raise SystemExit('Release assets must be flat regular files')
+          (root/'SHA256SUMS').write_text(''.join(digest(path)+'  '+path.name+'\n' for path in files))
+          verify_assets(root,sorted(root.iterdir()))
+          PYCODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: verified-release-candidate
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [cli, extension]
+    needs: [cli, extension, native]
     runs-on: ubuntu-latest
     steps:
       - name: Enforce the stable signing gate
         if: ${{ !contains(github.ref_name, '-') }}
         env:
           SIGNED_RELEASE_ENABLED: ${{ vars.KYNA_SIGNED_RELEASE_ENABLED }}
-        run: test "$SIGNED_RELEASE_ENABLED" = true
+          ANDROID_RUNNER_ENABLED: ${{ vars.KYNA_ANDROID_RUNNER_ENABLED }}
+        run: |
+          test "$SIGNED_RELEASE_ENABLED" = true
+          test "$ANDROID_RUNNER_ENABLED" = true
       - uses: actions/checkout@v7
       - name: Verify the release version
         shell: bash
@@ -135,10 +241,10 @@ jobs:
           (cd artifacts && sha256sum kyna-* install.sh install.ps1 > SHA256SUMS)
       - name: Create GitHub release
         env: { GH_TOKEN: "${{ github.token }}" }
-        run: gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --generate-notes ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+        run: python3 build_tools/packaging/publish_release.py --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --assets artifacts
 
   npm:
-    name: Publish npm installer
+    name: Prepare npm installer for owner publication
     if: startsWith(github.ref, 'refs/tags/')
     needs: [release]
     runs-on: ubuntu-latest
@@ -152,12 +258,10 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Enable npm trusted publishing
-        run: npm install --global npm@11.5.1
       - name: Set the package version
         working-directory: tools/npm-installer
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
       - name: Test the package
         working-directory: tools/npm-installer
         run: npm test
@@ -166,23 +270,13 @@ jobs:
         run: |
           node scripts/install.js
           node bin/ky.js --version
-      - name: Publish or synchronize the installer
+      - name: Prepare the verified npm archive
         working-directory: tools/npm-installer
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            channel=preview
-          else
-            channel=latest
-          fi
-          if npm view "@kyna-language/cli@$version" version >/dev/null 2>&1; then
-            published=$(npm view "@kyna-language/cli" "dist-tags.$channel")
-            test "$published" = "$version"
-            echo "@kyna-language/cli@$version is already published on $channel"
-          else
-            npm publish --access public --tag "$channel"
-          fi
+        run: npm pack
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-installer-for-owner-publication
+          path: tools/npm-installer/*.tgz
 
   container:
     name: Publish container
@@ -200,7 +294,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: container-metadata
         with:
-          images: ghcr.io/up-to-code/kyna
+          images: ghcr.io/qentrah/kyna
           tags: |
             type=raw,value=${{ github.ref_name }}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
@@ -217,7 +311,7 @@ jobs:
   marketplace:
     name: Publish VS Code Marketplace extension
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [extension]
+    needs: [extension, release]
     runs-on: ubuntu-latest
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}

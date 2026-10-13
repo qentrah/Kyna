@@ -27,7 +27,7 @@ std::vector<fs::path> formatFiles(const std::vector<std::string> &inputs) {
     if (fs::is_directory(path, ec)) {
       for (const auto &entry :
            fs::recursive_directory_iterator(path, fs::directory_options::skip_permission_denied))
-        if (entry.is_regular_file() && entry.path().extension() == ".kyna" &&
+        if (entry.is_regular_file() && (entry.path().extension() == ".kyna" || entry.path().extension() == ".ky") &&
             entry.path().string().find("/.git/") == std::string::npos)
           result.push_back(entry.path());
     } else

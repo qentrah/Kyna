@@ -5,6 +5,7 @@
 #include "../types/bytecode_call_frame.hpp"
 #include "../validators/bytecode_numeric_operations.hpp"
 #include <optional>
+#include <kyna/execution/numeric_comparison.hpp>
 
 namespace kyna {
 namespace {
@@ -295,41 +296,15 @@ BytecodeVirtualMachine::execute(const BytecodeModule &module,
         break;
       }
       case OpCode::Less:
-        writeRegister(frame, instruction.destination,
-                      RuntimeValue(leftInteger && rightInteger
-                                       ? std::get<std::int64_t>(
-                                             readRegister(frame, instruction.first).data) <
-                                             std::get<std::int64_t>(
-                                                 readRegister(frame, instruction.second).data)
-                                       : left < right));
-        break;
       case OpCode::LessEqual:
-        writeRegister(frame, instruction.destination,
-                      RuntimeValue(leftInteger && rightInteger
-                                       ? std::get<std::int64_t>(
-                                             readRegister(frame, instruction.first).data) <=
-                                             std::get<std::int64_t>(
-                                                 readRegister(frame, instruction.second).data)
-                                       : left <= right));
-        break;
       case OpCode::Greater:
-        writeRegister(frame, instruction.destination,
-                      RuntimeValue(leftInteger && rightInteger
-                                       ? std::get<std::int64_t>(
-                                             readRegister(frame, instruction.first).data) >
-                                             std::get<std::int64_t>(
-                                                 readRegister(frame, instruction.second).data)
-                                       : left > right));
+      case OpCode::GreaterEqual: {
+        const auto order = compareNumbers(readRegister(frame, instruction.first), readRegister(frame, instruction.second));
+        const auto opcode = instruction.opcode;
+        writeRegister(frame, instruction.destination, RuntimeValue(order &&
+          (opcode == OpCode::Less ? *order < 0 : opcode == OpCode::LessEqual ? *order <= 0 : opcode == OpCode::Greater ? *order > 0 : *order >= 0)));
         break;
-      case OpCode::GreaterEqual:
-        writeRegister(frame, instruction.destination,
-                      RuntimeValue(leftInteger && rightInteger
-                                       ? std::get<std::int64_t>(
-                                             readRegister(frame, instruction.first).data) >=
-                                             std::get<std::int64_t>(
-                                                 readRegister(frame, instruction.second).data)
-                                       : left >= right));
-        break;
+      }
       default:
         break;
       }

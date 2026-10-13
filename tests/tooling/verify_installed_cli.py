@@ -60,6 +60,19 @@ def stage_package(cli: pathlib.Path, repository: pathlib.Path, package: pathlib.
     if os.name == "nt":
         for dependency in cli.parent.glob("*.dll"):
             shutil.copy2(dependency, binary_directory / dependency.name)
+    for directory in ("lib/runtime", "licenses", "include"):
+        source = cli.parent.parent / directory
+        if source.is_dir():
+            shutil.copytree(source, package / directory)
+    if not (package / "include").is_dir():
+        for source, relative in (
+            (repository / "sdk/kyna_embedding/include/kyna/language/native_abi.h", "kyna/language/native_abi.h"),
+            (repository / "sdk/kyna_embedding/include/kyna/language/native_abi_v2.h", "kyna/language/native_abi_v2.h"),
+            (repository / "library/native/include/kyna/native/adapter.hpp", "kyna/native/adapter.hpp"),
+        ):
+            target = package / "include" / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
     share = package / "share" / "kyna"
     share.mkdir(parents=True)
     for filename in ("README.md", "LICENSE"):
@@ -136,6 +149,14 @@ def main() -> int:
                     "installer did not record its managed files")
             require(run(installed_cli, "--version").returncode == 0, "installed ky --version failed")
             require(run(installed_alias, "--version").returncode == 0, "installed kyna --version failed")
+            runtime_files = [p.relative_to(cli.parent.parent) for p in (cli.parent.parent / "lib/runtime").rglob("*") if p.is_file()]
+            for relative in runtime_files:
+                require((prefix / relative).is_file(), f"installer omitted runtime dependency: {relative}")
+            for name in ("native_abi.h", "native_abi_v2.h"):
+                header = prefix / "include/kyna/language" / name
+                require(header.is_file(), f"installer omitted native SDK header: {name}")
+                require(header.read_bytes() == (repository / "sdk/kyna_embedding/include/kyna/language" / name).read_bytes(),
+                        f"installer changed SDK header: {name}")
 
             project = root / "hello"
             created = run(installed_cli, "--no-color", "--no-interactive", "new", project,
@@ -161,10 +182,17 @@ def main() -> int:
             require(removed.returncode == 0, removed.stderr)
             if os.name == "nt":
                 for _ in range(100):
-                    if not installed_cli.exists() and not installed_alias.exists():
+                    # The Windows helper removes executables first and the manifest last.
+                    # Wait for its completion marker before inspecting managed SDK/runtime files.
+                    if (not installed_cli.exists() and not installed_alias.exists()
+                            and not (prefix / "share/kyna/install-manifest.txt").exists()):
                         break
                     time.sleep(0.05)
             require(not installed_cli.exists() and not installed_alias.exists(), "self uninstall left executables behind")
+            for relative in runtime_files:
+                require(not (prefix / relative).exists(), f"self uninstall left managed runtime dependency: {relative}")
+            require(not (prefix / "include/kyna/language/native_abi_v2.h").exists(),
+                    "self uninstall left the managed native SDK header")
         finally:
             server.shutdown()
             thread.join(timeout=5)

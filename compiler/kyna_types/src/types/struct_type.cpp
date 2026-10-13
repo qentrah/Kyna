@@ -1,4 +1,5 @@
 // Implements structural field identity, lookup, validation, rendering, and interning.
+#include "type_pool.hpp"
 #include <kyna/types/struct_type.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -12,8 +13,8 @@ struct Less {
     return left->str() < right->str();
   }
 };
-std::set<StructType *, Less> &pool() {
-  static std::set<StructType *, Less> values;
+TypePool<StructType, Less> &pool() {
+  static TypePool<StructType, Less> values;
   return values;
 }
 } // namespace
@@ -23,11 +24,8 @@ const StructType *StructType::make(std::vector<StructField> fields) {
   for (const auto &field : fields)
     if (field.name != "_" && !names.insert(field.name).second)
       throw std::invalid_argument("struct contains duplicate field '" + field.name + "'");
-  auto *created = new StructType(std::move(fields));
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<StructType>(new StructType(std::move(fields)));
+  return pool().intern(std::move(created));
 }
 
 const StructField *StructType::field(std::string_view name) const {

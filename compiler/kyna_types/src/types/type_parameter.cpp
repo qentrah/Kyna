@@ -1,4 +1,5 @@
 // Implements constrained generic type-parameter identity and interning.
+#include "type_pool.hpp"
 #include <kyna/types/type_parameter.hpp>
 #include <kyna/types/basic_type.hpp>
 
@@ -13,18 +14,15 @@ struct Less {
     return left->constraint()->str() < right->constraint()->str();
   }
 };
-std::set<TypeParam *, Less> &pool() {
-  static std::set<TypeParam *, Less> values;
+TypePool<TypeParam, Less> &pool() {
+  static TypePool<TypeParam, Less> values;
   return values;
 }
 } // namespace
 
 const TypeParam *TypeParam::make(std::string name, TypePtr constraint) {
-  auto *created = new TypeParam(std::move(name), constraint ? constraint : Universe::Any());
-  const auto [found, inserted] = pool().insert(created);
-  if (!inserted)
-    delete created;
-  return *found;
+  auto created = std::unique_ptr<TypeParam>(new TypeParam(std::move(name), constraint ? constraint : Universe::Any()));
+  return pool().intern(std::move(created));
 }
 
 const Type *TypeParam::underlying() const { return constraint_->underlying(); }

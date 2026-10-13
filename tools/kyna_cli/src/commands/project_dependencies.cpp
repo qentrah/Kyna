@@ -1,5 +1,6 @@
 #include "project_internals.hpp"
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -15,6 +16,44 @@ extern char **environ;
 
 namespace kyna::cli {
 namespace {
+// Restore both lockfiles when acquisition, validation, or either write fails.
+// Content-addressed artifact files may remain unreferenced after rollback.
+class LockTransaction {
+public:
+  explicit LockTransaction(const fs::path &root) {
+    backup = root / ".kyna" / ("lock-backup-" + std::to_string(
+        std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directories(backup);
+    try {
+      for (const auto &path : {root / "kyna.lock", root / ".kyna/native.lock"}) {
+        const auto saved = backup / std::to_string(entries.size());
+        const bool existed = fs::is_regular_file(path);
+        if (existed) fs::copy_file(path, saved);
+        entries.push_back({path, saved, existed, fs::is_directory(path)});
+      }
+    } catch (...) { fs::remove_all(backup); throw; }
+  }
+  ~LockTransaction() {
+    bool restored = true;
+    for (const auto &entry : entries) {
+      if (committed || entry.directory) continue;
+      std::error_code error;
+      fs::remove(entry.path, error);
+      if (entry.existed) {
+        error.clear(); fs::rename(entry.saved, entry.path, error);
+        restored = restored && !error;
+      }
+    }
+    if (restored) { std::error_code error; fs::remove_all(backup, error); }
+  }
+  void commit() { committed = true; }
+private:
+  struct Entry { fs::path path, saved; bool existed, directory; };
+  fs::path backup;
+  std::vector<Entry> entries;
+  bool committed{false};
+};
+
 bool write(const fs::path &path, std::string_view contents, std::string &error) {
   return projectWrite(path, contents, error);
 }
@@ -24,39 +63,11 @@ std::string shellQuote(const std::string &value) { return projectShellQuote(valu
 // Unlike std::system, no shell interprets the arguments, so values such as
 // dependency URLs or cache paths can never inject additional commands.
 int runArgv(const std::string &program, const std::vector<std::string> &args) {
-#if defined(KYNA_CLI_POSIX)
-  std::vector<std::string> storage;
-  storage.reserve(args.size() + 1);
-  storage.push_back(program);
-  for (const auto &argument : args)
-    storage.push_back(argument);
-  std::vector<char *> argv;
-  argv.reserve(storage.size() + 1);
-  for (auto &entry : storage)
-    argv.push_back(entry.data());
-  argv.push_back(nullptr);
-
-  posix_spawn_file_actions_t actions;
-  posix_spawnattr_t attributes;
-  if (posix_spawn_file_actions_init(&actions) != 0 || posix_spawnattr_init(&attributes) != 0)
-    return -1;
-  pid_t child = -1;
-  const int spawnError =
-      posix_spawn(&child, program.c_str(), &actions, &attributes, argv.data(), environ);
-  posix_spawnattr_destroy(&attributes);
-  posix_spawn_file_actions_destroy(&actions);
-  if (spawnError != 0)
-    return -1;
-  int status = 0;
-  if (waitpid(child, &status, 0) < 0)
-    return -1;
-  return WIFEXITED(status) ? WEXITSTATUS(status) : 128;
-#else
-  (void)program;
-  (void)args;
-  return -1;
-#endif
+  ProcessConfig config; config.program = program; config.args = args;
+  auto result = productionRuntimeCapabilities().processes->spawn(config);
+  return result.failedToStart ? -1 : result.exitCode;
 }
+
 } // namespace
 
 fs::path cacheRoot() {
@@ -177,6 +188,13 @@ int runDependencies(const Options &options, std::ostream &output, std::ostream &
            << "\"\nchecksum = \"git-tree:" << revision << "\"\n\n";
     }
   }
+  LockTransaction lockTransaction(root);
+  installNativePackages(root, manifest, options.locked);
+  if (fs::exists(root / ".kyna/native.lock")) {
+    lock << "# Native contracts (version, target, ABI, SHA-256):\n";
+    std::istringstream native(readInput((root / ".kyna/native.lock").string(), std::cin, error));
+    std::string line; while (std::getline(native, line)) lock << "# " << line << '\n';
+  }
   const auto lockPath = root / "kyna.lock";
   std::string existing;
   if (fs::exists(lockPath))
@@ -189,6 +207,7 @@ int runDependencies(const Options &options, std::ostream &output, std::ostream &
     errors << "ky: " << error << '\n';
     return 2;
   }
+  lockTransaction.commit();
   if (!options.quiet)
     output << (options.command == Command::Remove ? "Removed dependency" : "Dependencies resolved")
            << "\n";
