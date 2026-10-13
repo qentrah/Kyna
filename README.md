@@ -188,3 +188,7 @@ Created and maintained by Ahmed Mansour with help from open-source contributors
 and coding agents.
 
 Kyna is available under the [MIT License](LICENSE).
+
+## Project links
+
+[Source](https://github.com/qentrah/Kyna) · [Issues](https://github.com/qentrah/Kyna/issues) · [Public project directory](https://github.com/qentrah/.github/blob/main/profile/PROJECTS.md)
