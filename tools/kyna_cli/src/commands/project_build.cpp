@@ -36,6 +36,23 @@ int buildProject(const Options &options,std::ostream &output,std::ostream &error
    for(fs::recursive_directory_iterator it(source),end;it!=end;++it){auto name=it->path().filename().string();if(it->is_directory()&&(name==".git"||name=="node_modules"||name.starts_with("build")||it->path()==destination)){it.disable_recursion_pending();continue;}if(!it->is_regular_file())continue;auto ext=it->path().extension();if(ext!=".ky"&&ext!=".kyna")continue;auto file=target/fs::relative(it->path(),source);fs::create_directories(file.parent_path());fs::copy_file(it->path(),file,fs::copy_options::overwrite_existing);}
    table->insert_or_assign("path",package.generic_string());
   }
+  if(auto assets=manifest["build"]["assets"].node()) {
+   auto list=assets->as_array();
+   if(!list)buildFailure("build.assets must be an array of file paths","KBUILD1002","List local application assets explicitly in kyna.toml");
+   for(const auto &asset:*list) {
+    auto name=asset.value<std::string>();
+    if(!name||name->empty())buildFailure("Invalid application asset","KBUILD1002","Each asset must name a file inside the project");
+    auto path=fs::path(*name);
+    if(path.has_root_path())buildFailure("Application asset must be relative","KBUILD1002","Use a path relative to kyna.toml");
+    for(const auto &part:path)if(part=="..")buildFailure("Application asset escapes the project","KBUILD1002","Keep assets inside the project directory");
+    auto source=fs::weakly_canonical(root/path);
+    auto relative=fs::relative(source,fs::weakly_canonical(root));
+    if(relative.empty()||relative.generic_string().starts_with("..")||!fs::is_regular_file(source))buildFailure("Application asset is missing or outside the project","KBUILD1002","Check the declared asset and avoid external symlinks");
+    auto target=destination/"app"/path;
+    fs::create_directories(target.parent_path());
+    if(!fs::exists(target))fs::copy_file(source,target);
+   }
+  }
   if(!saveManifest(destination/"app",manifest,error))buildFailure(error,"KBUILD1003","Check output directory permissions");
  }
  auto relative=fs::relative(entry,root);if(relative.empty()||relative.generic_string().starts_with(".."))buildFailure("Entry must belong to project","KBUILD1001","Supply an entry file inside the project directory");

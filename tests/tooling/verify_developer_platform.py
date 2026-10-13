@@ -96,6 +96,22 @@ print("after-error", changing);
         checked = invoke(cli, "check", cwd=minimal / "src")
         require(checked.returncode == 0, checked.stderr)
 
+        assets = minimal / "assets"
+        assets.mkdir(); (assets / "icon.png").write_bytes(b"asset-fixture")
+        manifest_path = minimal / "kyna.toml"
+        original_manifest = manifest_path.read_text()
+        manifest_path.write_text(original_manifest + '\n[build]\nassets = ["assets/icon.png"]\n')
+        bundled = root / "icon-app"
+        built = invoke(cli, "build", "--output", str(bundled), cwd=minimal)
+        require(built.returncode == 0, built.stderr)
+        require((bundled / "app/assets/icon.png").read_bytes() == b"asset-fixture", "declared icon not bundled")
+        for asset in ("../escape.png", "assets/missing.png"):
+            manifest_path.write_text(original_manifest + '\n[build]\nassets = [' + json.dumps(asset) + ']\n')
+            rejected = invoke(cli, "build", "--output", str(root / "rejected-assets"), "--json", cwd=minimal)
+            require(rejected.returncode == 2 and json.loads(rejected.stderr)["diagnostics"][0]["code"] == "KBUILD1002", "unsafe/missing asset accepted")
+            require(not (root / "rejected-assets").exists(), "failed asset build left a partial bundle")
+        manifest_path.write_text(original_manifest)
+
         messy = "func  plus( value:int){# preserved\nreturn value+1;\n}\n"
         formatted = invoke(cli, "fmt", "-", stdin=messy)
         require(formatted.returncode == 0, formatted.stderr)

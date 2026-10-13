@@ -9,3 +9,12 @@ External programs receive argument vectors, never shell text. Invalid names/remo
 For a complete native application, see [Kyna Music](https://github.com/qentrah/kyna-music), whose application behavior is written in Kyna and whose Qt adapter provides native audio and presentation. Its build command automatically checks source, builds the adapter, tests application behavior and stages portable desktop artifacts.
 
 GUI applications can set their icon from Kyna using `guiIcon("assets/icon.png")`, or `gui.icon(...)` through the checked package wrapper. The image must be a readable local image or Qt resource. The icon API changes the running application's icon; distribution-specific bundle/launcher icons must also be included by the application's packaging recipe.
+
+Declare image and other application resources so `ky build` includes them:
+
+```toml
+[build]
+assets = ["assets/icon.png"]
+```
+
+Paths are project-relative regular files. Missing files, absolute paths, parent traversal and symlinks escaping the project fail with KBUILD1002.
