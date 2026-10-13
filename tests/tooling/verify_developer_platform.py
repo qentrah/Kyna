@@ -111,6 +111,21 @@ print("after-error", changing);
             require(rejected.returncode == 2 and json.loads(rejected.stderr)["diagnostics"][0]["code"] == "KBUILD1002", "unsafe/missing asset accepted")
             require(not (root / "rejected-assets").exists(), "failed asset build left a partial bundle")
         manifest_path.write_text(original_manifest)
+        # A source symlink must keep its authored import name and stay in its package.
+        if os.name != "nt":
+            link = minimal / "alias.ky"
+            link.symlink_to("src/main.kyna")
+            linked = invoke(cli, "build", "--output", str(root / "linked-app"), cwd=minimal)
+            require(linked.returncode == 0, linked.stderr)
+            require((root / "linked-app/app/alias.ky").is_file(), "internal source alias lost its import path")
+            link.unlink()
+            outside = root / "outside.ky"
+            outside.write_text('print("outside");\n')
+            link.symlink_to(outside)
+            rejected = invoke(cli, "build", "--output", str(root / "escaped-app"), "--json", cwd=minimal)
+            require(rejected.returncode == 2 and json.loads(rejected.stderr)["diagnostics"][0]["code"] == "KBUILD1002", "external source symlink accepted")
+            require(not (root / "escaped-app").exists(), "source rejection left a partial bundle")
+            link.unlink()
 
         messy = "func  plus( value:int){# preserved\nreturn value+1;\n}\n"
         formatted = invoke(cli, "fmt", "-", stdin=messy)
@@ -124,6 +139,13 @@ print("after-error", changing);
         require(invoke(cli, "new", str(dependency), "--template", "minimal", "--no-git").returncode == 0, "dependency scaffold failed")
         added = invoke(cli, "add", "shared", "--path", "../shared", cwd=minimal)
         require(added.returncode == 0, added.stderr)
+        if os.name != "nt":
+            escaped_dependency = dependency / "outside.ky"
+            escaped_dependency.symlink_to(root / "outside.ky")
+            rejected = invoke(cli, "build", "--output", str(root / "escaped-dependency"), "--json", cwd=minimal)
+            require(rejected.returncode == 2 and json.loads(rejected.stderr)["diagnostics"][0]["code"] == "KBUILD1002", "external dependency symlink accepted")
+            require(not (root / "escaped-dependency").exists(), "dependency rejection left a partial bundle")
+            escaped_dependency.unlink()
         require((minimal / "kyna.lock").is_file(), "lockfile was not generated")
         require(invoke(cli, "install", "--locked", cwd=minimal).returncode == 0, "locked install rejected a current lockfile")
         with (minimal / "kyna.toml").open("a", encoding="utf-8") as manifest:

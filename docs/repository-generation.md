@@ -6,7 +6,7 @@
 
 External programs receive argument vectors, never shell text. Invalid names/remotes fail before project creation. Failures preserve local files for inspection and retry. KPROJECT1001 identifies input/conflict errors, KPROJECT1002 identifies external tooling/authentication failures, and KPROJECT1003 identifies file writes; diagnostics retain `kyna.diagnostic/v1` and exit status 2.
 
-For a complete native application, see [Kyna Music](https://github.com/qentrah/kyna-music), whose application behavior is written in Kyna and whose Qt adapter provides native audio and presentation. Its build command automatically checks source, builds the adapter, tests application behavior and stages portable desktop artifacts.
+For a complete native application, see [Kyna Music](https://github.com/qentrah/kyna-music), whose application behavior is written in Kyna and whose Qt adapter provides native audio and presentation. Its CLI provides build, check, test and package actions; the desktop workflow runs all of them automatically.
 
 GUI applications can set their icon from Kyna using `guiIcon("assets/icon.png")`, or `gui.icon(...)` through the checked package wrapper. The image must be a readable local image or Qt resource. The icon API changes the running application's icon; distribution-specific bundle/launcher icons must also be included by the application's packaging recipe.
 
@@ -18,3 +18,5 @@ assets = ["assets/icon.png"]
 ```
 
 Paths are project-relative regular files. Missing files, absolute paths, parent traversal and symlinks escaping the project fail with KBUILD1002.
+
+Source files and dependency modules also enforce package containment. Internal source symlinks retain their authored import paths; symlinks resolving outside their owning package fail with KBUILD1002 and remove the partial bundle.
