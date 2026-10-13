@@ -77,6 +77,18 @@ print("after-error", changing);
 
     with tempfile.TemporaryDirectory(prefix="kyna-platform-") as temporary:
         root = pathlib.Path(temporary)
+        generated = invoke(cli, "generate", "repo", "standalone", cwd=root)
+        require(generated.returncode == 0, generated.stderr)
+        require((root / "standalone/.git").is_dir(), "repository generator did not initialize Git")
+        require((root / "standalone/LICENSE").is_file(), "repository license missing")
+        require(invoke(cli, "check", cwd=root / "standalone").returncode == 0, "generated repository is invalid Kyna")
+        duplicate = invoke(cli, "generate", "repo", "standalone", "--json", cwd=root)
+        require(duplicate.returncode == 2 and json.loads(duplicate.stderr)["diagnostics"][0]["code"] == "KPROJECT1001", "existing repository was not protected")
+        for name in ("../escape", "bad;name", "-option"):
+            rejected = invoke(cli, "generate", "repo", name, cwd=root)
+            require(rejected.returncode == 2, "invalid repository name accepted")
+        rejected = invoke(cli, "generate", "repo", "untouched", "--github", "owner/repo/extra", cwd=root)
+        require(rejected.returncode == 2 and not (root / "untouched").exists(), "invalid remote caused filesystem changes")
         minimal = root / "hello"
         created = invoke(cli, "new", str(minimal), "--template", "minimal", "--no-git")
         require(created.returncode == 0, created.stderr)

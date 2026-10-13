@@ -94,3 +94,7 @@ The verified macOS archives contain adapters, checked wrappers and relocated
 dependency closures. Final platform CI and production signing remain release
 gates. [Working app videos](videos/README.md) show GUI, hull, regression and
 Android lifecycle behavior.
+
+### Application icons
+
+`guiIcon("assets/icon.png")` sets the running GUI application icon from Kyna. The checked wrapper exports `gui.icon`. Invalid or missing images raise `KNATIVE1003`. See [repository generation and icon packaging](repository-generation.md) and the [Kyna Music desktop app](https://github.com/qentrah/kyna-music).

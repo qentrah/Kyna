@@ -21,6 +21,7 @@ std::string selectTemplate(const Options &options, std::istream &input, std::ost
 bool scaffoldProject(const fs::path &root, const std::string &kind, const Options &options,
                      std::ostream &output, std::ostream &errors);
 
+int generateRepository(const Options &options, std::ostream &output, std::ostream &errors);
 int generateRoute(const Options &options, std::ostream &output, std::ostream &errors);
 
 std::vector<fs::path> formatFiles(const std::vector<std::string> &inputs);

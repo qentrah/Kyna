@@ -65,6 +65,7 @@ struct Options {
   bool locked{false};
   std::string templateName;
   std::string generatorKind;
+  std::string githubRepository;
   std::string generatorName;
   std::string generatorMethod{"get"};
   std::string generatorPath;

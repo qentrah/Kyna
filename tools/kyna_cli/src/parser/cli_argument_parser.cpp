@@ -75,6 +75,11 @@ Options parseArguments(int argc, char **argv) {
   init->add_flag("--no-git", options.noGit); init->add_flag("--force", options.force); init->fallthrough();
   auto *generate = app.add_subcommand("generate", "Generate a project module");
   generate->alias("g");
+  auto *generateRepo = generate->add_subcommand("repo", "Create an open-source repository; --github publishes it publicly");
+  generateRepo->add_option("name", options.generatorName)->required();
+  generateRepo->add_option("--github", options.githubRepository, "Create and push a public OWNER/REPO using authenticated gh");
+  generateRepo->add_option("-t,--template", options.templateName)->check(CLI::IsMember({"minimal", "backend"}));
+  generateRepo->fallthrough();
   auto *generateRoute = generate->add_subcommand("route", "Generate and register a backend route");
   generateRoute->add_option("name", options.generatorName)->required();
   generateRoute->add_option("-m,--method", options.generatorMethod)
@@ -123,6 +128,7 @@ Options parseArguments(int argc, char **argv) {
   else if (*bytecode) options.command = Command::Bytecode; else if (*inspect) options.command = Command::Inspect;
   else if (*repl || argc == 1) options.command = Command::Repl; else if (*newProject) options.command = Command::New;
   else if (*init) options.command = Command::Init;
+  else if (*generateRepo) { options.command = Command::Generate; options.generatorKind = "repo"; }
   else if (*generateRoute) { options.command = Command::Generate; options.generatorKind = "route"; }
   else if (*format) options.command = Command::Format;
   else if (*dev) options.command = Command::Dev; else if (*serve) options.command = Command::Serve;
