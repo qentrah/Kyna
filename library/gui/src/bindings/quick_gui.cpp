@@ -4,6 +4,7 @@
 #include "../loading/gui_module_lifetime.hpp"
 #include <QGuiApplication>
 #include <QIcon>
+#include <QImageReader>
 #include <QQmlEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
@@ -52,9 +53,10 @@ kyna_native_result_v2 window(void*p,const Value*a,size_t) noexcept{return guarde
 kyna_native_result_v2 icon(void*p,const Value*a,size_t) noexcept {
  return guarded([&](Buffers&){
   auto s=static_cast<State*>(p);s->initialize();
-  QIcon image(QString::fromStdString(string(a[0])));
-  if(image.isNull())throw Failure("KNATIVE1003","application icon must be a readable local image or Qt resource");
-  QGuiApplication::setWindowIcon(image);return Value{};
+  const auto path=QString::fromStdString(string(a[0]));
+  QImageReader reader(path);
+  if(reader.read().isNull())throw Failure("KNATIVE1003","application icon must be a readable local image or Qt resource");
+  QGuiApplication::setWindowIcon(QIcon(path));return Value{};
  });
 }
 kyna_native_result_v2 label(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){auto s=static_cast<State*>(p);auto v=s->make("import QtQuick\nText { font.pixelSize: 18; color: '#202020'; Accessible.role: Accessible.StaticText; Accessible.name: text }",a);s->object(v)->setProperty("text",QString::fromStdString(string(a[1])));return v;});}

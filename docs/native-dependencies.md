@@ -75,3 +75,12 @@ rather than loading another copy of Qt's global state. A failed inventory or DLL
 load does not commit a partially initialized QML engine, so startup can retry
 after correction in the same session. Installed inventory/files remain covered
 by the native lockfile checksums.
+
+Linux x86_64 ML builds request OpenBLAS's `dynamic-arch` feature. The pinned
+[vcpkg port](https://github.com/microsoft/vcpkg/blob/63feddf004cc39169a8b0b7f79c2eba5065d6140/ports/openblas/cmake-project-include.cmake)
+otherwise optimizes for the build host, which is incompatible with reusing a
+CPU-specific cache on another hosted runner. Dynamic dispatch uses the port's
+baseline common code and selects optimized kernels at runtime. CI additionally
+runs the C++/Kyna regression oracle with the older NEHALEM kernel selected. This
+addresses a Linux x86_64 illegal-instruction failure; it is not a performance
+improvement claim or a guarantee for untested CPU/OS combinations.

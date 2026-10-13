@@ -36,7 +36,14 @@
     "ml": {
       "description": "Optional mlpack regression adapter",
       "dependencies": [
-        "mlpack"
+        "mlpack",
+        {
+          "name": "openblas",
+          "features": [
+            "dynamic-arch"
+          ],
+          "platform": "linux & x64"
+        }
       ]
     }
   }

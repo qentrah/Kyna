@@ -90,7 +90,9 @@ jobs:
         with:
           path: .vcpkg-binary-cache
           key: native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: native-ports-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            native-ports-geometry-ml-v2-${{ runner.os }}-${{ runner.arch }}-
+            native-ports-${{ runner.os }}-${{ runner.arch }}-
       - uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
@@ -99,6 +101,11 @@ jobs:
         shell: bash
         run: cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DKYNA_WITH_GUI=ON -DKYNA_WITH_GEOMETRY=ON -DKYNA_WITH_ML=ON '-DVCPKG_MANIFEST_FEATURES=geometry;ml' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
       - run: cmake --build build-native --config Release --parallel 3
+      - name: Verify portable x86 BLAS dispatch
+        if: matrix.target == 'linux-x86_64'
+        env:
+          OPENBLAS_CORETYPE: NEHALEM
+        run: ./build-native/bin/kyna_optional_oracle ./build-native/native/libkyna_ml.so
       - name: Install extension runtime dependencies
         run: npm ci --omit=dev --ignore-scripts --prefix editors/vscode-kyna
       - name: Diagnose Windows GUI crashes

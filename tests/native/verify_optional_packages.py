@@ -83,6 +83,9 @@ set_target_properties(fixture PROPERTIES PREFIX "" SUFFIX ".native")
     run(["--native-library",gui,"run",source('guiIcon('+json.dumps(icon.as_posix())+');')])
     rejected=run(["--native-library",gui,"run",source('guiIcon("/missing-kyna-icon.png");')],False)
     assert 'KNATIVE1003' in rejected.stderr and 'readable local image' in rejected.stderr
+    icon.write_bytes(b'not an image')
+    rejected=run(["--native-library",gui,"run",source('guiIcon('+json.dumps(icon.as_posix())+');')],False)
+    assert 'KNATIVE1003' in rejected.stderr
     run(["--native-library",gui,"check",source('guiIcon(42);')],False)
     # Callback contracts must also hold when static typing is explicitly bypassed.
     # Invalid durations fail before Qt starts, including on a host without a
