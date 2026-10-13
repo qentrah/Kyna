@@ -1,5 +1,9 @@
 # Safety audit and release verification
 
+Current merged checkpoint: PR #6 passed [core platform CI](https://github.com/qentrah/Kyna/actions/runs/38344931584) and [all five desktop native targets plus Android ARM64 cross-compilation](https://github.com/qentrah/Kyna/actions/runs/38344931588) at `9d33bfb`, then merged as `f21e771`. The Windows faults described below are historical and resolved in that checkpoint. Hosted physical Android application smoke remains a separate unprovisioned-runner gate.
+
+The repository-generation/icon follow-up adds regression checks for explicit asset staging, rejected traversal/missing files, source/dependency symlink containment, preserved internal alias paths, and cleanup of rejected bundles. Its local Release suite passes all 57 tests. Exact follow-up platform results are recorded in PR #7.
+
 The audit uses the existing C++ compiler pipeline and VM. It introduces no native
 code backend. Each behavior below has executable regression coverage.
 

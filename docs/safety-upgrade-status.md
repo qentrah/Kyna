@@ -1,5 +1,8 @@
 # Safety and native-library upgrade status
 
+Current status: [PR #6](https://github.com/qentrah/Kyna/pull/6) is merged. Its final core CI and all five desktop native package jobs passed at `9d33bfb`; Android ARM64 cross-compilation passed. Earlier failure reports below are historical checkpoints. Production signing, license clearance, physical Android CI and Rams review credits remain external release gates.
+
+
 Checkpoint: 2026-10-11, PR [#6](https://github.com/qentrah/Kyna/pull/6).
 Version 1.0.16 is prepared; no release tag or npm publication has been created.
 
@@ -62,8 +65,7 @@ application retries are required. Android uploads are flat, and the hosted
 
 ## Remaining release gates
 
-1. Finish final platform CI and fix any failures. Native packages must pass actual
-   application/install/build smoke before their desktop target is supported.
+1. The merged PR #6 platform matrix passes application/install/build smoke on all five desktop targets. Each later release revision still needs its own verified CI artifacts.
 2. Production signing requires repository credentials and the enabled stable
    release gate. CLI and native libraries share signature verification and
    notarization checks; missing credentials block publication.
