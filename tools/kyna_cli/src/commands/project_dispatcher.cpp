@@ -35,7 +35,8 @@ int runProjectCommand(const Options &options, std::istream &input, std::ostream 
                : 2;
   }
   case Command::Generate:
-    return generateRoute(options, output, errors);
+    return options.generatorKind == "repo" ? generateRepository(options, output, errors)
+                                           : generateRoute(options, output, errors);
   case Command::Format:
     return runFormat(options, input, output, errors);
   case Command::Add:

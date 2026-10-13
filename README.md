@@ -165,6 +165,8 @@ language feature.
 - [Runtime](docs/runtime.md)
 - [Standard library](docs/stdlib.md)
 - [Libraries and native bindings](docs/libraries.md)
+- [Repository generation and app icons](docs/repository-generation.md)
+- [Kyna Music desktop application](https://github.com/qentrah/kyna-music)
 - [Safety upgrade status](docs/safety-upgrade-status.md)
 - [Installation and releases](docs/distribution.md)
 - [Security](SECURITY.md)

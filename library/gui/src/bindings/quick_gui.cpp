@@ -3,6 +3,8 @@
 #include "../loading/gui_runtime_paths.hpp"
 #include "../loading/gui_module_lifetime.hpp"
 #include <QGuiApplication>
+#include <QIcon>
+#include <QImageReader>
 #include <QQmlEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
@@ -45,8 +47,18 @@ public:
 constexpr Type item{KYNA_V2_RESOURCE,0,nullptr,"GuiItem"};constexpr Type callback{KYNA_V2_CALLBACK,0,nullptr,nullptr,nullptr,0,&nothing};
 constexpr Type lifecycleCallback{KYNA_V2_CALLBACK,0,nullptr,nullptr,&text,1,&nothing};
 constexpr Type lifecycleArgs[]{lifecycleCallback};
+constexpr Type iconArgs[]{text};
 constexpr Type windowArgs[]{text,integer,integer},labelArgs[]{item,text},layoutArgs[]{item},buttonArgs[]{item,text,callback},timerArgs[]{integer,callback},eventArgs[]{integer},drawArgs[]{item,matrix,text};
 kyna_native_result_v2 window(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){if(a[1].integer<=0||a[2].integer<=0||a[1].integer>INT_MAX||a[2].integer>INT_MAX)throw Failure("KNATIVE1003","window dimensions must be positive 32-bit integers");auto s=static_cast<State*>(p);auto v=s->make("import QtQuick\nWindow { visible: true; color: '#fafafa' }");auto o=s->object(v);o->setProperty("title",QString::fromStdString(string(a[0])));o->setProperty("width",int(a[1].integer));o->setProperty("height",int(a[2].integer));return v;});}
+kyna_native_result_v2 icon(void*p,const Value*a,size_t) noexcept {
+ return guarded([&](Buffers&){
+  auto s=static_cast<State*>(p);s->initialize();
+  const auto path=QString::fromStdString(string(a[0]));
+  QImageReader reader(path);
+  if(reader.read().isNull())throw Failure("KNATIVE1003","application icon must be a readable local image or Qt resource");
+  QGuiApplication::setWindowIcon(QIcon(path));return Value{};
+ });
+}
 kyna_native_result_v2 label(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){auto s=static_cast<State*>(p);auto v=s->make("import QtQuick\nText { font.pixelSize: 18; color: '#202020'; Accessible.role: Accessible.StaticText; Accessible.name: text }",a);s->object(v)->setProperty("text",QString::fromStdString(string(a[1])));return v;});}
 kyna_native_result_v2 input(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){auto s=static_cast<State*>(p);auto v=s->make("import QtQuick\nTextInput { width: 220; height: 36; font.pixelSize: 18; selectByMouse: true; focus: true; Accessible.role: Accessible.EditableText; Accessible.name: 'Text input' }",a);s->object(v)->setProperty("text",QString::fromStdString(string(a[1])));return v;});}
 kyna_native_result_v2 row(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){return static_cast<State*>(p)->make("import QtQuick\nRow { spacing: 12 }",a);});}
@@ -59,9 +71,9 @@ kyna_native_result_v2 draw(void*p,const Value*a,size_t) noexcept{return guarded(
 kyna_native_result_v2 onLifecycle(void*p,const Value*a,size_t) noexcept{return guarded([&](Buffers&){auto s=static_cast<State*>(p);s->initialize();auto event=s->subscribe(a[0].handle);s->lifecycle.push_back(event);return whole(event);});}
 kyna_native_result_v2 run(void*p,const Value*,size_t) noexcept{return guarded([&](Buffers&){auto s=static_cast<State*>(p);s->initialize();if(s->running)throw std::runtime_error("GUI event loop is already running");s->running=true;QGuiApplication::exec();s->running=false;if(!s->failure.empty())throw Failure(s->failureCode,s->failure);return Value{};});}
 kyna_native_result_v2 quit(void*,const Value*,size_t) noexcept{return guarded([&](Buffers&){QGuiApplication::quit();return Value{};});}
-const kyna_native_function_v2 functions[]{ {"guiWindow",windowArgs,3,item,window},{"guiText",labelArgs,2,item,label},{"guiInput",labelArgs,2,item,input},{"guiRow",layoutArgs,1,item,row},{"guiColumn",layoutArgs,1,item,column},{"guiButton",buttonArgs,3,item,button},{"guiRead",layoutArgs,1,text,read},{"guiAfter",timerArgs,2,integer,after},{"guiUnsubscribe",eventArgs,1,nothing,unsubscribe},{"guiDraw",drawArgs,3,item,draw},{"guiRun",nullptr,0,nothing,run},{"guiQuit",nullptr,0,nothing,quit},{"guiOnLifecycle",lifecycleArgs,1,integer,onLifecycle} };
+const kyna_native_function_v2 functions[]{ {"guiIcon",iconArgs,1,nothing,icon},{"guiWindow",windowArgs,3,item,window},{"guiText",labelArgs,2,item,label},{"guiInput",labelArgs,2,item,input},{"guiRow",layoutArgs,1,item,row},{"guiColumn",layoutArgs,1,item,column},{"guiButton",buttonArgs,3,item,button},{"guiRead",layoutArgs,1,text,read},{"guiAfter",timerArgs,2,integer,after},{"guiUnsubscribe",eventArgs,1,nothing,unsubscribe},{"guiDraw",drawArgs,3,item,draw},{"guiRun",nullptr,0,nothing,run},{"guiQuit",nullptr,0,nothing,quit},{"guiOnLifecycle",lifecycleArgs,1,integer,onLifecycle} };
 int validGui(void *p,uint64_t id,const char *type) noexcept {auto s=static_cast<State*>(p);if(!s->resources.valid(id,type))return 0;auto it=s->resources.entries.find(id);return bool(std::static_pointer_cast<Item>(it->second.object)->object);}
-const kyna_native_module_v2_descriptor module{2,sizeof(module),"gui","1.0.16",functions,13,create<State>,close<State>,validGui,destroy<State>};
+const kyna_native_module_v2_descriptor module{2,sizeof(module),"gui","1.0.16",functions,std::size(functions),create<State>,close<State>,validGui,destroy<State>};
 }
 extern "C" KYNA_NATIVE_EXPORT const kyna_native_module_v2_descriptor *kyna_native_module_v2(){return &module;}
 #include "quick_gui.moc"

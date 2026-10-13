@@ -86,6 +86,7 @@ int dispatch(const Options &options, std::istream &input, std::ostream &output,
               "  init [path]        Initialize a project\n"
               "  dev | run dev      Watch, check, and restart\n"
               "  serve              Run the backend entry\n"
+              "  generate repo      Create a local repo; --github OWNER/REPO publishes publicly\n"
               "  generate route     Add a route; supports --method and --path\n"
               "  build [entry]      Package an app; --native builds authored CMake bindings\n"
               "  add/remove/install Manage Git/path/native dependencies\n\n"

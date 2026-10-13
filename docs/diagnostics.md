@@ -60,3 +60,5 @@ superseded checks, and retains previous findings when the CLI fails or returns
 malformed JSON. Unsaved entry text is checked through stdin. Unsaved imported
 files use bounded temporary source overlays. Checks containing overlays bypass
 persistent export-cache reads and writes, preserving the disk contract cache.
+
+Repository generation uses `KPROJECT1001` for invalid names/remotes or existing directories, `KPROJECT1002` for Git/GitHub CLI failures, and `KPROJECT1003` for file writes. These use exit status 2 and the existing JSON diagnostic schema.

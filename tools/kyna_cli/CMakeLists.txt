@@ -19,6 +19,7 @@ add_executable(kyna
   src/commands/project_fs.cpp
   src/commands/project_new.cpp
   src/commands/project_generate.cpp
+  src/commands/project_repository.cpp
   src/commands/project_format.cpp
   src/commands/project_dependencies.cpp
   src/commands/project_build.cpp

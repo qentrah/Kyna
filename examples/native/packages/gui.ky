@@ -11,3 +11,4 @@ export var draw = guiDraw;
 export var run = guiRun;
 export var quit = guiQuit;
 export var onLifecycle = guiOnLifecycle;
+export var icon = guiIcon;
