@@ -85,7 +85,7 @@ jobs:
           version: '6.7.3'
           arch: ${{ matrix.qt-arch }}
           install-deps: true
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: native-cache
         with:
           path: .vcpkg-binary-cache
@@ -173,7 +173,7 @@ jobs:
           path: release-assets/**
       - name: Preserve built dependency cache after packaging failures
         if: always() && steps.native-configure.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .vcpkg-binary-cache
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
